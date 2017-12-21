@@ -8,7 +8,7 @@ FBO init_fbo(HOOKS hooks, const unsigned int res_x, const unsigned int res_y) {
 
     // Make a new FBO
     glGenFramebuffers(1, &(fbo.fbo_name));
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo.fbo_name);
+    hooks.__glBindFramebuffer(GL_FRAMEBUFFER, fbo.fbo_name);
 
     // Make color and depth textures for the FBO
     glGenTextures(1, &(fbo.color_name));
@@ -59,7 +59,7 @@ FBO init_fbo(HOOKS hooks, const unsigned int res_x, const unsigned int res_y) {
     glBindTexture(GL_TEXTURE_2D, old_tex_id);
 
     // Unbind the FBO
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    hooks.__glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     return fbo;
 }
@@ -69,8 +69,8 @@ void bind_fbo(HOOKS hooks, FBO fbo) {
     glGetIntegeri_v(GL_VIEWPORT, 0, &(fbo.previous_viewport));
     printf("Old viewport %i %i \n", fbo.previous_viewport[2],
            fbo.previous_viewport[3]);
-    hooks.__glViewport(0, 0, fbo.tex_res_x, fbo.tex_res_y);
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo.fbo_name);
+    //hooks.__glViewport(0, 0, fbo.tex_res_x, fbo.tex_res_y);
+    hooks.__glBindFramebuffer(GL_FRAMEBUFFER, fbo.fbo_name);
     //assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 }
 
@@ -85,12 +85,16 @@ void unbind_fbo(HOOKS hooks, FBO fbo) {
     glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 0, 0, x_res, y_res, 0);
 
     glPixelStorei(GL_PACK_ALIGNMENT, 1);
-    uchar* raw_img = (uchar*) malloc(x_res * y_res * 4 * sizeof(uchar));
+    uchar* raw_img = (uchar*) malloc(x_res * y_res * 3 * sizeof(uchar));
     glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, raw_img);
 
-    lodepng_encode24_file("first.png", raw_img, x_res, y_res);
+    size_t data_length;
+    void* data = tdefl_write_image_to_png_file_in_memory(raw_img, x_res, y_res, 3, &data_length);
+    FILE* fp = fopen("first.png", "wb");
+    fwrite(data, 1, data_length, fp);
+    fclose(fp);
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    hooks.__glViewport(fbo.previous_viewport[0], fbo.previous_viewport[1],
-                       fbo.previous_viewport[2], fbo.previous_viewport[3]);
+    //hooks.__glViewport(fbo.previous_viewport[0], fbo.previous_viewport[1],
+    //fbo.previous_viewport[2], fbo.previous_viewport[3]);
 }

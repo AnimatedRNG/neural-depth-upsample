@@ -69,6 +69,9 @@ void init_hook_info(const bool need_glx_calls, const bool need_gl_calls) {
         hooks.init_GL = true;
         hooks.__glViewport = (f_gl_viewport_t) hooks.f_dlsym(
                                  hooks.libGL_handle, "glViewport");
+        hooks.__glBindFramebuffer = (f_gl_bind_framebuffer_t)
+                                    hooks.f_dlsym(hooks.libGL_handle,
+                                            "glBindFramebuffer");
     }
 }
 
@@ -130,6 +133,15 @@ __PUBLIC void glViewport(GLint x, GLint y, GLsizei width, GLsizei height) {
     hooks.__glViewport(x, y, width, height);
 }
 
+__PUBLIC void glBindFramebuffer(GLenum target, GLuint framebuffer) {
+    printf("Trying to bind framebuffer %i\n", framebuffer);
+    if (framebuffer != 0) {
+        hooks.__glBindFramebuffer(target, framebuffer);
+    } else {
+        bind_fbo(hooks, fbo);
+    }
+}
+
 void* get_wrapped_func(const char* symbol) {
     if (!strcmp(symbol, "glXSwapBuffers"))
         return (void*) &glXSwapBuffers;
@@ -139,6 +151,8 @@ void* get_wrapped_func(const char* symbol) {
         return (void*) &glXMakeCurrent;
     else if (!strcmp(symbol, "glViewport"))
         return (void*) &glViewport;
+    else if (!strcmp(symbol, "glBindFramebuffer"))
+        return (void*) &glBindFramebuffer;
     else
         return NULL;
 }

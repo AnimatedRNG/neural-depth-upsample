@@ -18,6 +18,7 @@ typedef Bool(*f_glx_make_current_t)(Display* dpy, GLXDrawable drawable,
 
 typedef void (*f_gl_viewport_t)(GLint x, GLint y, GLsizei width,
                                 GLsizei height);
+typedef void (*f_gl_bind_framebuffer_t)(GLenum target, GLuint framebuffer);
 typedef void (*f_gl_draw_arrays_t)(GLenum mode, GLint first, GLsizei count);
 
 typedef struct {
@@ -36,4 +37,5 @@ typedef struct {
     f_glx_make_current_t __glXMakeCurrent;
 
     f_gl_viewport_t __glViewport;
+    f_gl_bind_framebuffer_t __glBindFramebuffer;
 } HOOKS;

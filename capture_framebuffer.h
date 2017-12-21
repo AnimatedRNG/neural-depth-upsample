@@ -8,7 +8,7 @@
 #include <GL/glext.h>
 #include <GL/gl.h>
 
-#include "lodepng.h"
+#include "miniz.h"
 #include "hooks_dict.h"
 
 typedef struct {
