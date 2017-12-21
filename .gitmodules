@@ -1,3 +1,6 @@
 [submodule "elfhacks"]
 	path = elfhacks
 	url = git@github.com:nullkey/elfhacks.git
+[submodule "lodepng"]
+	path = lodepng
+	url = git@github.com:lvandeve/lodepng.git

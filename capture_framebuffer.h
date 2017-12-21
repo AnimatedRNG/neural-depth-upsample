@@ -3,8 +3,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <assert.h>
 #include <GL/gl.h>
 #include <GL/glext.h>
+#include <GL/gl.h>
+
+#include "lodepng.h"
+#include "hooks_dict.h"
 
 typedef struct {
     GLuint fbo_name;
@@ -17,6 +22,6 @@ typedef struct {
     GLint previous_viewport[4];
 } FBO;
 
-FBO init_fbo(const unsigned int res_x, const unsigned int res_y);
-void bind_fbo(FBO fbo);
-void unbind_fbo(FBO fbo);
+FBO init_fbo(HOOKS hooks, const unsigned int res_x, const unsigned int res_y);
+void bind_fbo(HOOKS hooks, FBO fbo);
+void unbind_fbo(HOOKS hooks, FBO fbo);
