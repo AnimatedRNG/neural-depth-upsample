@@ -1,0 +1,3 @@
+[submodule "elfhacks"]
+	path = elfhacks
+	url = git@github.com:nullkey/elfhacks.git

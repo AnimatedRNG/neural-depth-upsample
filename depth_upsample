@@ -1,0 +1,6 @@
+#!/usr/bin/bash
+
+BASEDIR=$(dirname "$0")
+export LD_PRELOAD="${BASEDIR}/frame_grabber.so"
+export LD_LIBRARY_PATH="${BASEDIR}/elfhacks/src"
+eval $1
