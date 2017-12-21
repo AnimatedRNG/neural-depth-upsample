@@ -57,65 +57,59 @@ void get_real_dlsym(f_dlopen_t* f_dlopen,
     eh_destroy_obj(&libdl);
 }
 
-HOOKS init_hook_info() {
+HOOKS init_hook_info(const int need_glx_calls) {
     HOOKS hooks;
     get_real_dlsym(&(hooks.f_dlopen), &(hooks.f_dlsym), &(hooks.f_dlvsym));
 
-    hooks.libGL_handle = hooks.f_dlopen("libGL.so", RTLD_LAZY);
+    if (need_glx_calls) {
+        hooks.libGL_handle = hooks.f_dlopen("libGL.so.1", RTLD_LAZY);
 
-    hooks.__glXSwapBuffers = (f_glx_swap_buffers_t) hooks.f_dlsym(
-                                 hooks.libGL_handle, "glXSwapBuffers");
+        hooks.__glXSwapBuffers = (f_glx_swap_buffers_t) hooks.f_dlsym(
+                                     hooks.libGL_handle, "glXSwapBuffers");
 
-    hooks.__glXGetProcAddressARB = (f_glx_ext_func_ptr_t(*)(const GLubyte*))
-                                   hooks.f_dlsym(hooks.libGL_handle,
-                                           "glXGetProcAddressARB");
+        hooks.__glXGetProcAddressARB = (f_glx_ext_func_ptr_t(*)(const GLubyte*))
+                                       hooks.f_dlsym(hooks.libGL_handle,
+                                               "glXGetProcAddressARB");
+    }
     return hooks;
 }
 
-void h_glXSwapBuffers(Display* dpy, GLXDrawable drawable) {
-    HOOKS hooks = init_hook_info();
+__PUBLIC void glXSwapBuffers(Display* dpy, GLXDrawable drawable) {
+    HOOKS hooks = init_hook_info(1);
     printf("Testing\n");
     return hooks.__glXSwapBuffers(dpy, drawable);
 }
 
-f_glx_ext_func_ptr_t h_glXGetProcAddressARB(const GLubyte* proc_name) {
-    HOOKS hooks = init_hook_info();
+__PUBLIC f_glx_ext_func_ptr_t glXGetProcAddressARB(const GLubyte* proc_name) {
+    HOOKS hooks = init_hook_info(1);
 
     printf("Calling glXGetProcAddressARB\n");
 
     if (!strcmp((char*) proc_name, "glXSwapBuffers")) {
-        return (f_glx_ext_func_ptr_t) &h_glXSwapBuffers;
+        return (f_glx_ext_func_ptr_t) &glXSwapBuffers;
     } else if (!strcmp((char*) proc_name, "glXGetProcAddressARB")) {
-        return (f_glx_ext_func_ptr_t) &h_glXGetProcAddressARB;
+        return (f_glx_ext_func_ptr_t) &glXGetProcAddressARB;
     } else {
         return hooks.__glXGetProcAddressARB(proc_name);
     }
 }
 
-__PUBLIC void glXSwapBuffers(Display* dpy, GLXDrawable drawable) {
-    return h_glXSwapBuffers(dpy, drawable);
-}
-
-__PUBLIC f_glx_ext_func_ptr_t glXGetProcAddressARB(const GLubyte* proc_name) {
-    return h_glXGetProcAddressARB(proc_name);
-}
-
-/*void* dlsym(void* handle, const char* symbol) {
-    HOOKS hooks = init_hook_info();
+void* dlsym(void* handle, const char* symbol) {
+    HOOKS hooks = init_hook_info(0);
 
     if (!strcmp(symbol, "glXSwapBuffers"))
-        return (void*) &h_glXSwapBuffers;
+        return (void*) &glXSwapBuffers;
     else if (!strcmp(symbol, "glXGetProcAddressARB"))
-        return (void*) &h_glXGetProcAddressARB;
+        return (void*) &glXGetProcAddressARB;
     else
         return hooks.f_dlsym(handle, symbol);
 }
 
 void* dlvsym(void* handle, const char* symbol, const char* version) {
-    HOOKS hooks = init_hook_info();
+    HOOKS hooks = init_hook_info(0);
 
     if (!strcmp(symbol, "glXSwapBuffers"))
-        return (void*) &h_glXSwapBuffers;
+        return (void*) &glXSwapBuffers;
     else
         return hooks.f_dlvsym(handle, symbol, version);
-        }*/
+}
