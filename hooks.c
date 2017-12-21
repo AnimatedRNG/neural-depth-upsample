@@ -17,6 +17,9 @@ typedef void* (*f_dlvsym_t)(void*, const char*, const char*);
 
 typedef void (*f_glx_swap_buffers_t)(Display* dpy, GLXDrawable drawable);
 typedef void (*f_glx_ext_func_ptr_t)(void);
+typedef Bool (*f_glx_make_current_t)(Display* dpy, GLXDrawable drawable, GLXContext ctx);
+
+typedef void (*f_gl_draw_arrays_t)(GLenum mode, GLint first, GLsizei count);
 
 typedef struct {
     f_dlopen_t f_dlopen;
@@ -27,6 +30,7 @@ typedef struct {
 
     f_glx_swap_buffers_t __glXSwapBuffers;
     f_glx_ext_func_ptr_t(*__glXGetProcAddressARB)(const GLubyte*);
+    f_glx_make_current_t __glXMakeCurrent;
 } HOOKS;
 
 void get_real_dlsym(f_dlopen_t* f_dlopen,
@@ -70,14 +74,28 @@ HOOKS init_hook_info(const int need_glx_calls) {
         hooks.__glXGetProcAddressARB = (f_glx_ext_func_ptr_t(*)(const GLubyte*))
                                        hooks.f_dlsym(hooks.libGL_handle,
                                                "glXGetProcAddressARB");
+
+        hooks.__glXMakeCurrent = (f_glx_make_current_t) hooks.f_dlsym(
+                                     hooks.libGL_handle, "glXMakeCurrent");
     }
     return hooks;
 }
 
+void before_swap_buffers(f_glx_swap_buffers_t swap_buffers,
+                         Display* dpy,
+                         GLXDrawable drawable) {
+    printf("Before swap buffers\n");
+    swap_buffers(dpy, drawable);
+    printf("After swap buffers\n");
+}
+
+void after_make_current() {
+    printf("Just made current");
+}
+
 __PUBLIC void glXSwapBuffers(Display* dpy, GLXDrawable drawable) {
     HOOKS hooks = init_hook_info(1);
-    printf("Testing\n");
-    return hooks.__glXSwapBuffers(dpy, drawable);
+    before_swap_buffers(hooks.__glXSwapBuffers, dpy, drawable);
 }
 
 __PUBLIC f_glx_ext_func_ptr_t glXGetProcAddressARB(const GLubyte* proc_name) {
@@ -92,6 +110,13 @@ __PUBLIC f_glx_ext_func_ptr_t glXGetProcAddressARB(const GLubyte* proc_name) {
     } else {
         return hooks.__glXGetProcAddressARB(proc_name);
     }
+}
+
+__PUBLIC Bool glXMakeCurrent(Display* dpy, GLXDrawable drawable, GLXContext ctx) {
+    HOOKS hooks = init_hook_info(1);
+    Bool ret = hooks.__glXMakeCurrent(dpy, drawable, ctx);
+    after_make_current();
+    return ret;
 }
 
 void* dlsym(void* handle, const char* symbol) {

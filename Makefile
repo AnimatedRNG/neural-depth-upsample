@@ -1,5 +1,5 @@
 CC=gcc
 CFLAGS=-I.
 
-fg: frame_grabber.c
-	$(CC) -shared -ldl -fPIC -lX11 -lGL -L./elfhacks/src -lelfhacks frame_grabber.c -o frame_grabber.so
+fg: hooks.c
+	$(CC) -shared -ldl -fPIC -lX11 -lGL -L./elfhacks/src -lelfhacks hooks.c -o hooks.so
