@@ -53,3 +53,7 @@ dkms.conf
 
 # Apitrace files
 *.trace
+
+# Images
+*.ppm
+*.png

@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <dlfcn.h>
 #include <X11/Xlib.h>
 #include <GL/gl.h>
@@ -8,6 +9,7 @@
 #include <GL/glext.h>
 
 #include "elfhacks.h"
+#include "capture_framebuffer.h"
 
 #define __PUBLIC __attribute__ ((visibility ("default")))
 
@@ -32,6 +34,8 @@ typedef struct {
     f_glx_ext_func_ptr_t(*__glXGetProcAddressARB)(const GLubyte*);
     f_glx_make_current_t __glXMakeCurrent;
 } HOOKS;
+
+FBO fbo;
 
 void get_real_dlsym(f_dlopen_t* f_dlopen,
                     f_dlsym_t* f_dlsym,
@@ -85,12 +89,16 @@ void before_swap_buffers(f_glx_swap_buffers_t swap_buffers,
                          Display* dpy,
                          GLXDrawable drawable) {
     printf("Before swap buffers\n");
+    unbind_fbo(fbo);
     swap_buffers(dpy, drawable);
+    bind_fbo(fbo);
     printf("After swap buffers\n");
 }
 
 void after_make_current() {
-    printf("Just made current");
+    printf("Just made current\n");
+    fbo = init_fbo(3200, 1800);
+    bind_fbo(fbo);
 }
 
 __PUBLIC void glXSwapBuffers(Display* dpy, GLXDrawable drawable) {
@@ -126,6 +134,9 @@ void* dlsym(void* handle, const char* symbol) {
         return (void*) &glXSwapBuffers;
     else if (!strcmp(symbol, "glXGetProcAddressARB"))
         return (void*) &glXGetProcAddressARB;
+    else if (!strcmp(symbol, "glXMakeCurrent")) {
+        return (void*) &glXMakeCurrent;
+    }
     else
         return hooks.f_dlsym(handle, symbol);
 }
