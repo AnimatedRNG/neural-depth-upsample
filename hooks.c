@@ -72,23 +72,26 @@ void init_hook_info(const bool need_glx_calls, const bool need_gl_calls) {
         hooks.__glBindFramebuffer = (f_gl_bind_framebuffer_t)
                                     hooks.f_dlsym(hooks.libGL_handle,
                                             "glBindFramebuffer");
+
+        fbo.tex_res_x = 0;
+        fbo.tex_res_y = 0;
     }
 }
 
 void before_swap_buffers(Display* dpy,
                          GLXDrawable drawable) {
-    printf("Before swap buffers\n");
-    unbind_fbo(hooks, fbo);
+    printf("Before swap buffers %i\n", fbo.tex_res_x);
+    unbind_fbo(hooks, &fbo);
     hooks.__glXSwapBuffers(dpy, drawable);
-    clear_fbo(hooks, fbo);
-    bind_fbo(hooks, fbo);
-    printf("After swap buffers\n");
+    clear_fbo(hooks, &fbo);
+    bind_fbo(hooks, &fbo);
+    printf("After swap buffers %i\n", fbo.tex_res_x);
 }
 
 void after_make_current() {
     printf("Just made current\n");
-    fbo = init_fbo(hooks, 1920, 1080);
-    bind_fbo(hooks, fbo);
+    init_fbo(hooks, &fbo);
+    bind_fbo(hooks, &fbo);
 }
 
 __PUBLIC void glXSwapBuffers(Display* dpy, GLXDrawable drawable) {
@@ -130,15 +133,25 @@ __PUBLIC void glViewport(GLint x, GLint y, GLsizei width, GLsizei height) {
     fbo.previous_viewport[1] = y;
     fbo.previous_viewport[2] = width;
     fbo.previous_viewport[3] = height;
+    if (fbo.other_fbo_bound == false) {
+        printf("Calling glViewport without any other FBO bound, resetting textures\n");
+        reset_textures(hooks, &fbo, width, height);
+    } else {
+        printf("There was another FBO bound!\n");
+    }
     hooks.__glViewport(x, y, width, height);
 }
 
 __PUBLIC void glBindFramebuffer(GLenum target, GLuint framebuffer) {
     printf("Trying to bind framebuffer %i\n", framebuffer);
     if (framebuffer != 0) {
+        printf("... other FBO bound");
+        fbo.other_fbo_bound = true;
         hooks.__glBindFramebuffer(target, framebuffer);
     } else {
-        bind_fbo(hooks, fbo);
+        printf("... other FBO not bound");
+        fbo.other_fbo_bound = false;
+        bind_fbo(hooks, &fbo);
     }
 }
 

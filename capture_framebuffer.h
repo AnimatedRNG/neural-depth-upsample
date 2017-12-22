@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <assert.h>
 #include <GL/gl.h>
 #include <GL/glext.h>
@@ -16,13 +17,16 @@ typedef struct {
     GLuint color_name;
     GLuint depth_name;
 
+    bool other_fbo_bound;
+
     GLsizei tex_res_x;
     GLsizei tex_res_y;
 
     GLint previous_viewport[4];
 } FBO;
 
-FBO init_fbo(HOOKS hooks, const unsigned int res_x, const unsigned int res_y);
-void clear_fbo(HOOKS hooks, FBO fbo);
-void bind_fbo(HOOKS hooks, FBO fbo);
-void unbind_fbo(HOOKS hooks, FBO fbo);
+void init_fbo(HOOKS hooks, FBO* fbo);
+void reset_textures(HOOKS hooks, FBO* fbo, const unsigned int res_x, const unsigned int res_y);
+void clear_fbo(HOOKS hooks, FBO* fbo);
+void bind_fbo(HOOKS hooks, FBO* fbo);
+void unbind_fbo(HOOKS hooks, FBO* fbo);
