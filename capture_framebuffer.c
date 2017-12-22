@@ -64,14 +64,9 @@ FBO init_fbo(HOOKS hooks, const unsigned int res_x, const unsigned int res_y) {
     return fbo;
 }
 
-// TODO: Fix the viewport tracking so that it actually updates on glViewport calls
-void bind_fbo(HOOKS hooks, FBO fbo) {
-    glGetIntegeri_v(GL_VIEWPORT, 0, &(fbo.previous_viewport));
-    printf("Old viewport %i %i \n", fbo.previous_viewport[2],
-           fbo.previous_viewport[3]);
-    //hooks.__glViewport(0, 0, fbo.tex_res_x, fbo.tex_res_y);
+void clear_fbo(HOOKS hooks, FBO fbo) {
+    printf("Clearing FBO\n");
     hooks.__glBindFramebuffer(GL_FRAMEBUFFER, fbo.fbo_name);
-
     GLfloat old_depth;
     GLfloat old_color[4];
     glGetFloatv(GL_COLOR_CLEAR_VALUE, old_color);
@@ -81,6 +76,16 @@ void bind_fbo(HOOKS hooks, FBO fbo) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glClearColor(old_color[0], old_color[1], old_color[2], old_color[3]);
     glClearDepth(old_depth);
+    hooks.__glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+// TODO: Fix the viewport tracking so that it actually updates on glViewport calls
+void bind_fbo(HOOKS hooks, FBO fbo) {
+    glGetIntegeri_v(GL_VIEWPORT, 0, &(fbo.previous_viewport));
+    printf("Old viewport %i %i \n", fbo.previous_viewport[2],
+           fbo.previous_viewport[3]);
+    //hooks.__glViewport(0, 0, fbo.tex_res_x, fbo.tex_res_y);
+    hooks.__glBindFramebuffer(GL_FRAMEBUFFER, fbo.fbo_name);
 
     //assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 }
@@ -99,11 +104,11 @@ void unbind_fbo(HOOKS hooks, FBO fbo) {
     uchar* raw_img = (uchar*) malloc(x_res * y_res * 3 * sizeof(uchar));
     glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, raw_img);
 
-    size_t data_length;
+    /*size_t data_length;
     void* data = tdefl_write_image_to_png_file_in_memory(raw_img, x_res, y_res, 3, &data_length);
     FILE* fp = fopen("first.png", "wb");
     fwrite(data, 1, data_length, fp);
-    fclose(fp);
+    fclose(fp);*/
 
     hooks.__glBindFramebuffer(GL_FRAMEBUFFER, 0);
     //hooks.__glViewport(fbo.previous_viewport[0], fbo.previous_viewport[1],

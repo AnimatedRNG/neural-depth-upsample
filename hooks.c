@@ -75,12 +75,12 @@ void init_hook_info(const bool need_glx_calls, const bool need_gl_calls) {
     }
 }
 
-void before_swap_buffers(f_glx_swap_buffers_t swap_buffers,
-                         Display* dpy,
+void before_swap_buffers(Display* dpy,
                          GLXDrawable drawable) {
     printf("Before swap buffers\n");
     unbind_fbo(hooks, fbo);
-    swap_buffers(dpy, drawable);
+    hooks.__glXSwapBuffers(dpy, drawable);
+    clear_fbo(hooks, fbo);
     bind_fbo(hooks, fbo);
     printf("After swap buffers\n");
 }
@@ -95,7 +95,7 @@ __PUBLIC void glXSwapBuffers(Display* dpy, GLXDrawable drawable) {
     if (!hooks.init_GLX) {
         init_hook_info(true, true);
     }
-    before_swap_buffers(hooks.__glXSwapBuffers, dpy, drawable);
+    before_swap_buffers(dpy, drawable);
 }
 
 __PUBLIC f_glx_ext_func_ptr_t glXGetProcAddressARB(const GLubyte* proc_name) {

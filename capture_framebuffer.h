@@ -23,5 +23,6 @@ typedef struct {
 } FBO;
 
 FBO init_fbo(HOOKS hooks, const unsigned int res_x, const unsigned int res_y);
+void clear_fbo(HOOKS hooks, FBO fbo);
 void bind_fbo(HOOKS hooks, FBO fbo);
 void unbind_fbo(HOOKS hooks, FBO fbo);
