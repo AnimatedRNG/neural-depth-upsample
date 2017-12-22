@@ -71,6 +71,17 @@ void bind_fbo(HOOKS hooks, FBO fbo) {
            fbo.previous_viewport[3]);
     //hooks.__glViewport(0, 0, fbo.tex_res_x, fbo.tex_res_y);
     hooks.__glBindFramebuffer(GL_FRAMEBUFFER, fbo.fbo_name);
+
+    GLfloat old_depth;
+    GLfloat old_color[4];
+    glGetFloatv(GL_COLOR_CLEAR_VALUE, old_color);
+    glGetFloatv(GL_DEPTH_CLEAR_VALUE, &old_depth);
+    glClearColor(0.0, 0.0, 0.0, 0.0);
+    glClearDepth(1.0);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glClearColor(old_color[0], old_color[1], old_color[2], old_color[3]);
+    glClearDepth(old_depth);
+
     //assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 }
 
@@ -94,7 +105,7 @@ void unbind_fbo(HOOKS hooks, FBO fbo) {
     fwrite(data, 1, data_length, fp);
     fclose(fp);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    hooks.__glBindFramebuffer(GL_FRAMEBUFFER, 0);
     //hooks.__glViewport(fbo.previous_viewport[0], fbo.previous_viewport[1],
     //fbo.previous_viewport[2], fbo.previous_viewport[3]);
 }
