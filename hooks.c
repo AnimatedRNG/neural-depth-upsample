@@ -83,6 +83,8 @@ void before_swap_buffers(Display* dpy,
     printf("Before swap buffers %i\n", fbo.tex_res_x);
     unbind_fbo(hooks, &fbo);
     hooks.__glXSwapBuffers(dpy, drawable);
+    guess_fbo_dims(hooks, &fbo);
+    reset_textures(hooks, &fbo);
     clear_fbo(hooks, &fbo);
     bind_fbo(hooks, &fbo);
     printf("After swap buffers %i\n", fbo.tex_res_x);
@@ -91,6 +93,9 @@ void before_swap_buffers(Display* dpy,
 void after_make_current() {
     printf("Just made current\n");
     init_fbo(hooks, &fbo);
+    guess_fbo_dims(hooks, &fbo);
+    reset_textures(hooks, &fbo);
+    clear_fbo(hooks, &fbo);
     bind_fbo(hooks, &fbo);
 }
 
@@ -135,7 +140,9 @@ __PUBLIC void glViewport(GLint x, GLint y, GLsizei width, GLsizei height) {
     fbo.previous_viewport[3] = height;
     if (fbo.other_fbo_bound == false) {
         printf("Calling glViewport without any other FBO bound, resetting textures\n");
-        reset_textures(hooks, &fbo, width, height);
+        fbo.tex_res_x = width;
+        fbo.tex_res_y = height;
+        reset_textures(hooks, &fbo);
     } else {
         printf("There was another FBO bound!\n");
     }

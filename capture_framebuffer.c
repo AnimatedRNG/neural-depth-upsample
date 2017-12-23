@@ -13,21 +13,19 @@ void init_fbo(HOOKS hooks, FBO* fbo) {
     glGenTextures(1, &(fbo->color_name));
     glGenTextures(1, &(fbo->depth_name));
 
-    // Specify that we want to draw both the color and the depth
-    GLenum DrawBuffers[2] = {GL_COLOR_ATTACHMENT0, GL_DEPTH_ATTACHMENT};
-    glDrawBuffers(2, DrawBuffers);
-
-    //assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
-
     // Unbind the FBO
     hooks.__glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void reset_textures(HOOKS hooks, FBO* fbo, const unsigned int res_x,
-                    const unsigned int res_y) {
-    printf("Resetting textures to %ix%i\n", res_x, res_y);
-    fbo->tex_res_x = res_x;
-    fbo->tex_res_y = res_y;
+void reset_textures(HOOKS hooks, FBO* fbo) {
+    printf("Resetting textures to %ix%i\n", fbo->tex_res_x, fbo->tex_res_y);
+
+    // Save the the old FBO
+    GLint old_fbo_id;
+    glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &old_fbo_id);
+
+    // Bind the current FBO
+    hooks.__glBindFramebuffer(GL_FRAMEBUFFER, fbo->fbo_name);
 
     // Save the old texture
     GLint old_tex_id;
@@ -37,29 +35,28 @@ void reset_textures(HOOKS hooks, FBO* fbo, const unsigned int res_x,
     glBindTexture(GL_TEXTURE_2D, fbo->color_name);
 
     // Set the color FBO to zero for every channel
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, res_x, res_y, 0, GL_RGB,
-                 GL_UNSIGNED_BYTE, 0);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, fbo->tex_res_x,
+                 fbo->tex_res_y, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
 
     // Nearest neighbor filtering
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
     // Bind the depth FBO
     glBindTexture(GL_TEXTURE_2D, fbo->depth_name);
 
     // Set the depth FBO to zero for the only channel
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, res_x, res_y, 0,
-                 GL_DEPTH_COMPONENT, GL_FLOAT, 0);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, fbo->tex_res_x,
+                 fbo->tex_res_y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, 0);
 
     // Nearest neighbor filtering
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_DEPTH_TEXTURE_MODE, GL_INTENSITY);
-
-    GLint old_fbo_id;
-    glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &old_fbo_id);
-
-    hooks.__glBindFramebuffer(GL_FRAMEBUFFER, fbo->fbo_name);
 
     // Attach the textures to the FBO
     glBindTexture(GL_TEXTURE_2D, fbo->color_name);
@@ -69,6 +66,15 @@ void reset_textures(HOOKS hooks, FBO* fbo, const unsigned int res_x,
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D,
                            fbo->depth_name, 0);
 
+    // Specify that we want to draw both the color and the depth
+    GLenum DrawBuffers[2] = {GL_COLOR_ATTACHMENT0, GL_DEPTH_ATTACHMENT};
+    glDrawBuffers(2, DrawBuffers);
+
+    GLenum fbo_status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    assert(fbo_status == GL_FRAMEBUFFER_COMPLETE ||
+           fbo_status == 0);
+
+    // Rebind the old FBO
     hooks.__glBindFramebuffer(GL_FRAMEBUFFER, old_fbo_id);
 
     // Restore old texture
@@ -90,25 +96,25 @@ void clear_fbo(HOOKS hooks, FBO* fbo) {
     hooks.__glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
+void guess_fbo_dims(HOOKS hooks, FBO* fbo) {
+    glGetIntegeri_v(GL_VIEWPORT, 0, &(fbo->previous_viewport));
+    if (fbo->previous_viewport[2] != 0) {
+        fbo->tex_res_x = fbo->previous_viewport[2];
+        fbo->tex_res_y = fbo->previous_viewport[3];
+    } else {
+        printf("Found viewport of 0x0; adjusting to 100x100...\n");
+        fbo->tex_res_x = 100;
+        fbo->tex_res_y = 100;
+    }
+    printf("Guessing viewport %i %i \n", fbo->previous_viewport[2],
+           fbo->previous_viewport[3]);
+}
+
 // TODO: Fix the viewport tracking so that it actually updates on glViewport calls
 void bind_fbo(HOOKS hooks, FBO* fbo) {
     printf("Calling bind_fbo with fbo res %ix%i\n", fbo->tex_res_x, fbo->tex_res_y);
-    if (fbo->tex_res_x == 0) {
-        printf("Tried to bind FBO but the user hasn't called glViewport yet!\n");
-        glGetIntegeri_v(GL_VIEWPORT, 0, &(fbo->previous_viewport));
-        printf("Guessing viewport %i %i \n", fbo->previous_viewport[2],
-               fbo->previous_viewport[3]);
-        reset_textures(hooks, fbo,
-                       fbo->previous_viewport[2],
-                       fbo->previous_viewport[3]);
-    } else {
-        printf("Old viewport %i %i \n", fbo->previous_viewport[2],
-               fbo->previous_viewport[3]);
-    }
-    //hooks.__glViewport(0, 0, fbo->tex_res_x, fbo->tex_res_y);
+    reset_textures(hooks, fbo);
     hooks.__glBindFramebuffer(GL_FRAMEBUFFER, fbo->fbo_name);
-
-    //assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 }
 
 void unbind_fbo(HOOKS hooks, FBO* fbo) {
@@ -133,6 +139,4 @@ void unbind_fbo(HOOKS hooks, FBO* fbo) {
     fclose(fp);
 
     hooks.__glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    //hooks.__glViewport(fbo->previous_viewport[0], fbo->previous_viewport[1],
-    //fbo->previous_viewport[2], fbo->previous_viewport[3]);
 }

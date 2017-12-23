@@ -26,7 +26,8 @@ typedef struct {
 } FBO;
 
 void init_fbo(HOOKS hooks, FBO* fbo);
-void reset_textures(HOOKS hooks, FBO* fbo, const unsigned int res_x, const unsigned int res_y);
+void reset_textures(HOOKS hooks, FBO* fbo);
 void clear_fbo(HOOKS hooks, FBO* fbo);
+void guess_fbo_dims(HOOKS hooks, FBO* fbo);
 void bind_fbo(HOOKS hooks, FBO* fbo);
 void unbind_fbo(HOOKS hooks, FBO* fbo);
