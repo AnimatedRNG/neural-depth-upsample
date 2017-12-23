@@ -13,6 +13,8 @@
 #include "hooks_dict.h"
 
 typedef struct {
+    bool init;
+
     GLuint fbo_name;
     GLuint color_name;
     GLuint depth_name;

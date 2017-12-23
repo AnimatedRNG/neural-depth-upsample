@@ -4,6 +4,7 @@ void init_fbo(HOOKS hooks, FBO* fbo) {
     printf("Rebuilding FBO...\n");
 
     fbo->other_fbo_bound = false;
+    fbo->init = true;
 
     // Make a new FBO
     glGenFramebuffers(1, &(fbo->fbo_name));
@@ -18,6 +19,10 @@ void init_fbo(HOOKS hooks, FBO* fbo) {
 }
 
 void reset_textures(HOOKS hooks, FBO* fbo) {
+    if (!fbo->init) {
+        init_fbo(hooks, fbo);
+    }
+
     printf("Resetting textures to %ix%i\n", fbo->tex_res_x, fbo->tex_res_y);
 
     // Save the the old FBO
@@ -99,8 +104,10 @@ void clear_fbo(HOOKS hooks, FBO* fbo) {
 void guess_fbo_dims(HOOKS hooks, FBO* fbo) {
     glGetIntegeri_v(GL_VIEWPORT, 0, &(fbo->previous_viewport));
     if (fbo->previous_viewport[2] != 0) {
-        fbo->tex_res_x = fbo->previous_viewport[2];
-        fbo->tex_res_y = fbo->previous_viewport[3];
+        //fbo->tex_res_x = fbo->previous_viewport[2];
+        //fbo->tex_res_y = fbo->previous_viewport[3];
+        fbo->tex_res_x = 3200;
+        fbo->tex_res_y = 1800;
     } else {
         printf("Found viewport of 0x0; adjusting to 100x100...\n");
         fbo->tex_res_x = 100;
@@ -121,6 +128,8 @@ void unbind_fbo(HOOKS hooks, FBO* fbo) {
     typedef unsigned char uchar;
     int x_res = fbo->tex_res_x;
     int y_res = fbo->tex_res_y;
+
+    printf("x_res %i\n", x_res);
 
     glMemoryBarrier(GL_ALL_BARRIER_BITS);
     // rgb image

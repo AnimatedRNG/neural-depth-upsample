@@ -75,6 +75,7 @@ void init_hook_info(const bool need_glx_calls, const bool need_gl_calls) {
 
         fbo.tex_res_x = 0;
         fbo.tex_res_y = 0;
+        fbo.init = false;
     }
 }
 
@@ -140,13 +141,16 @@ __PUBLIC void glViewport(GLint x, GLint y, GLsizei width, GLsizei height) {
     fbo.previous_viewport[3] = height;
     if (fbo.other_fbo_bound == false) {
         printf("Calling glViewport without any other FBO bound, resetting textures\n");
-        fbo.tex_res_x = width;
-        fbo.tex_res_y = height;
+        //fbo.tex_res_x = width;
+        //fbo.tex_res_y = height;
+        fbo.tex_res_x = 3200;
+        fbo.tex_res_y = 1800;
         reset_textures(hooks, &fbo);
+        hooks.__glViewport(x, y, 3200, 1800);
     } else {
         printf("There was another FBO bound!\n");
+        hooks.__glViewport(x, y, width, height);
     }
-    hooks.__glViewport(x, y, width, height);
 }
 
 __PUBLIC void glBindFramebuffer(GLenum target, GLuint framebuffer) {
