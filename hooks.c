@@ -11,12 +11,16 @@
 
 #include "elfhacks.h"
 #include "hooks_dict.h"
-#include "capture_framebuffer.h"
+#include "capture_pbo.h"
 
 #define __PUBLIC __attribute__ ((visibility ("default")))
 
-FBO fbo;
 HOOKS hooks;
+GLuint pbo[2];
+GLuint texture[2];
+GLsizei window_res_x = 100;
+GLsizei window_res_y = 100;
+int i = 0;
 
 void get_real_dlsym(f_dlopen_t* f_dlopen,
                     f_dlsym_t* f_dlsym,
@@ -72,32 +76,24 @@ void init_hook_info(const bool need_glx_calls, const bool need_gl_calls) {
         hooks.__glBindFramebuffer = (f_gl_bind_framebuffer_t)
                                     hooks.f_dlsym(hooks.libGL_handle,
                                             "glBindFramebuffer");
-
-        fbo.tex_res_x = 0;
-        fbo.tex_res_y = 0;
-        fbo.init = false;
     }
 }
 
 void before_swap_buffers(Display* dpy,
                          GLXDrawable drawable) {
-    printf("Before swap buffers %i\n", fbo.tex_res_x);
-    unbind_fbo(hooks, &fbo);
+    printf("Before swap buffers\n");
+    read_into_pbo(pbo, window_res_x, window_res_y);
+    update_textures_from_pbo(pbo, texture, window_res_x, window_res_y);
+    if (++i % 15 == 0) {
+        write_image(window_res_x, window_res_y, texture[0]);
+    }
     hooks.__glXSwapBuffers(dpy, drawable);
-    guess_fbo_dims(hooks, &fbo);
-    reset_textures(hooks, &fbo);
-    clear_fbo(hooks, &fbo);
-    bind_fbo(hooks, &fbo);
-    printf("After swap buffers %i\n", fbo.tex_res_x);
+    printf("After swap buffers\n");
 }
 
 void after_make_current() {
     printf("Just made current\n");
-    init_fbo(hooks, &fbo);
-    guess_fbo_dims(hooks, &fbo);
-    reset_textures(hooks, &fbo);
-    clear_fbo(hooks, &fbo);
-    bind_fbo(hooks, &fbo);
+    create_pbo(&(pbo[0]), &(pbo[1]));
 }
 
 __PUBLIC void glXSwapBuffers(Display* dpy, GLXDrawable drawable) {
@@ -105,22 +101,6 @@ __PUBLIC void glXSwapBuffers(Display* dpy, GLXDrawable drawable) {
         init_hook_info(true, true);
     }
     before_swap_buffers(dpy, drawable);
-}
-
-__PUBLIC f_glx_ext_func_ptr_t glXGetProcAddressARB(const GLubyte* proc_name) {
-    if (!hooks.init_GLX) {
-        init_hook_info(true, true);
-    }
-
-    printf("Calling glXGetProcAddressARB\n");
-
-    if (!strcmp((char*) proc_name, "glXSwapBuffers")) {
-        return (f_glx_ext_func_ptr_t) &glXSwapBuffers;
-    } else if (!strcmp((char*) proc_name, "glXGetProcAddressARB")) {
-        return (f_glx_ext_func_ptr_t) &glXGetProcAddressARB;
-    } else {
-        return hooks.__glXGetProcAddressARB(proc_name);
-    }
 }
 
 __PUBLIC Bool glXMakeCurrent(Display* dpy, GLXDrawable drawable,
@@ -135,35 +115,25 @@ __PUBLIC Bool glXMakeCurrent(Display* dpy, GLXDrawable drawable,
 
 __PUBLIC void glViewport(GLint x, GLint y, GLsizei width, GLsizei height) {
     printf("Trying to change the viewport to %ix%i\n", width, height);
-    fbo.previous_viewport[0] = x;
-    fbo.previous_viewport[1] = y;
-    fbo.previous_viewport[2] = width;
-    fbo.previous_viewport[3] = height;
-    if (fbo.other_fbo_bound == false) {
-        printf("Calling glViewport without any other FBO bound, resetting textures\n");
-        //fbo.tex_res_x = width;
-        //fbo.tex_res_y = height;
-        fbo.tex_res_x = 3200;
-        fbo.tex_res_y = 1800;
-        reset_textures(hooks, &fbo);
-        hooks.__glViewport(x, y, 3200, 1800);
-    } else {
-        printf("There was another FBO bound!\n");
-        hooks.__glViewport(x, y, width, height);
+    hooks.__glViewport(x, y, width, height);
+
+    GLint old_fbo_id;
+    glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &old_fbo_id);
+    if (old_fbo_id == 0) {
+        printf("Default framebuffer bound, resetting window size\n");
+        if (width != window_res_x || height != window_res_y) {
+            printf("Resizing textures to (%i, %i)\n", width, height);
+            window_res_x = width;
+            window_res_y = height;
+            create_textures(&(texture[0]), &(texture[1]),
+                            width, height);
+        }
     }
 }
 
 __PUBLIC void glBindFramebuffer(GLenum target, GLuint framebuffer) {
     printf("Trying to bind framebuffer %i\n", framebuffer);
-    if (framebuffer != 0) {
-        printf("... other FBO bound");
-        fbo.other_fbo_bound = true;
-        hooks.__glBindFramebuffer(target, framebuffer);
-    } else {
-        printf("... other FBO not bound");
-        fbo.other_fbo_bound = false;
-        bind_fbo(hooks, &fbo);
-    }
+    hooks.__glBindFramebuffer(target, framebuffer);
 }
 
 void* get_wrapped_func(const char* symbol) {
@@ -179,6 +149,21 @@ void* get_wrapped_func(const char* symbol) {
         return (void*) &glBindFramebuffer;
     else
         return NULL;
+}
+
+__PUBLIC f_glx_ext_func_ptr_t glXGetProcAddressARB(const GLubyte* proc_name) {
+    if (!hooks.init_GLX) {
+        init_hook_info(true, true);
+    }
+
+    printf("Calling glXGetProcAddressARB\n");
+
+    void* ret = get_wrapped_func((char*) proc_name);
+    if (ret) {
+        return ret;
+    } else {
+        return hooks.__glXGetProcAddressARB(proc_name);
+    }
 }
 
 void* dlsym(void* handle, const char* symbol) {
