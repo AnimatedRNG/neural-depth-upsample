@@ -1,6 +1,7 @@
 #!/usr/bin/bash
 
-BASEDIR=$(dirname "$0")
+BASEDIR=$PWD
 export LD_PRELOAD="${BASEDIR}/hooks.so"
 export LD_LIBRARY_PATH="${BASEDIR}/elfhacks/src"
+echo $BASEDIR
 eval $1
