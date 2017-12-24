@@ -88,7 +88,7 @@ void before_swap_buffers(Display* dpy,
     if (++i % 15 == 0) {
         write_image(window_res_x, window_res_y, texture[0]);
     }
-    render_image(hooks, prog_id, texture, false, false, window_res_x, window_res_y);
+    //render_image(hooks, prog_id, texture, false, false, window_res_x, window_res_y);
     hooks.__glXSwapBuffers(dpy, drawable);
     printf("After swap buffers\n");
 }
@@ -117,6 +117,10 @@ __PUBLIC Bool glXMakeCurrent(Display* dpy, GLXDrawable drawable,
 }
 
 __PUBLIC void glViewport(GLint x, GLint y, GLsizei width, GLsizei height) {
+    if (!hooks.init_GLX) {
+        init_hook_info(true, true);
+    }
+
     printf("Trying to change the viewport to %ix%i\n", width, height);
     hooks.__glViewport(x, y, width, height);
 
@@ -135,6 +139,10 @@ __PUBLIC void glViewport(GLint x, GLint y, GLsizei width, GLsizei height) {
 }
 
 __PUBLIC void glBindFramebuffer(GLenum target, GLuint framebuffer) {
+    if (!hooks.init_GLX) {
+        init_hook_info(true, true);
+    }
+
     printf("Trying to bind framebuffer %i\n", framebuffer);
     hooks.__glBindFramebuffer(target, framebuffer);
 }
