@@ -9,6 +9,7 @@
 #include <GL/glext.h>
 
 #include "miniz.h"
+#include "hooks_dict.h"
 
 void create_pbo(GLuint* color_pbo,
                 GLuint* depth_pbo);
@@ -24,7 +25,9 @@ void update_textures_from_pbo(const GLuint pbo[2],
                               const GLsizei x_res,
                               const GLsizei y_res);
 GLuint create_shaders();
-void render_image(const GLuint prog_id,
+void render_image(HOOKS hooks,
+                  const GLuint prog_id,
+                  const GLuint texture[2],
                   const bool downsample,
                   const bool depth,
                   const GLsizei x_res,

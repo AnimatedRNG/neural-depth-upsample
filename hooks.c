@@ -88,6 +88,7 @@ void before_swap_buffers(Display* dpy,
     if (++i % 15 == 0) {
         write_image(window_res_x, window_res_y, texture[0]);
     }
+    render_image(hooks, prog_id, texture, false, false, window_res_x, window_res_y);
     hooks.__glXSwapBuffers(dpy, drawable);
     printf("After swap buffers\n");
 }
@@ -95,7 +96,7 @@ void before_swap_buffers(Display* dpy,
 void after_make_current() {
     printf("Just made current\n");
     create_pbo(&(pbo[0]), &(pbo[1]));
-    create_shaders();
+    prog_id = create_shaders();
 }
 
 __PUBLIC void glXSwapBuffers(Display* dpy, GLXDrawable drawable) {
