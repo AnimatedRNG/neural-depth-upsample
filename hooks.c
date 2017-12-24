@@ -21,7 +21,6 @@
 #define THREADS 4
 
 HOOKS hooks;
-GLuint prog_id;
 GLuint pbo[2];
 GLuint texture[2];
 pthread_t threads[THREADS];
@@ -139,7 +138,6 @@ void before_swap_buffers(Display* dpy,
     read_into_pbo(pbo, window_res_x, window_res_y);
     update_textures_from_pbo(pbo, texture, window_res_x, window_res_y);
     write_image(window_res_x, window_res_y, texture[0], ++i, frame_producer);
-    //render_image(hooks, prog_id, texture, false, false, window_res_x, window_res_y);
     hooks.__glXSwapBuffers(dpy, drawable);
     printf("After swap buffers\n");
 }
@@ -147,7 +145,6 @@ void before_swap_buffers(Display* dpy,
 void after_make_current() {
     printf("Just made current\n");
     create_pbo(&(pbo[0]), &(pbo[1]));
-    //prog_id = create_shaders();
 }
 
 __PUBLIC void glXSwapBuffers(Display* dpy, GLXDrawable drawable) {
