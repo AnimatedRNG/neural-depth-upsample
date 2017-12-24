@@ -16,6 +16,7 @@
 #define __PUBLIC __attribute__ ((visibility ("default")))
 
 HOOKS hooks;
+GLuint prog_id;
 GLuint pbo[2];
 GLuint texture[2];
 GLsizei window_res_x = 100;
@@ -94,6 +95,8 @@ void before_swap_buffers(Display* dpy,
 void after_make_current() {
     printf("Just made current\n");
     create_pbo(&(pbo[0]), &(pbo[1]));
+    create_shaders("passthrough.glsl",
+                   "render_tex.glsl");
 }
 
 __PUBLIC void glXSwapBuffers(Display* dpy, GLXDrawable drawable) {
