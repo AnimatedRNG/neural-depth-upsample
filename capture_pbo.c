@@ -1,5 +1,36 @@
 #include "capture_pbo.h"
 
+const char* vertex_shader_str =
+    "#version 310 es\n"
+    "precision mediump float;\n"
+    "\n"
+    "// Input vertex data, different for all executions of this shader.\n"
+    "layout(location = 0) in vec3 vertexPosition_modelspace;\n"
+    "\n"
+    "// Output data ; will be interpolated for each fragment.\n"
+    "out vec2 UV;\n"
+    "\n"
+    "void main(){\n"
+    "\tgl_Position =  vec4(vertexPosition_modelspace,1);\n"
+    "\tUV = (vertexPosition_modelspace.xy+vec2(1,1))/2.0;\n"
+    "}\n"
+    "";
+
+const char* fragment_shader_str =
+    "#version 310 es\n"
+    "precision mediump float;\n"
+    "\n"
+    "in vec2 UV;\n"
+    "\n"
+    "out vec3 color;\n"
+    "\n"
+    "uniform sampler2D renderedTexture;\n"
+    "uniform float time;\n"
+    "\n"
+    "void main(){\n"
+    "\tcolor = texture( renderedTexture, UV + 0.005*vec2( sin(time+1024.0*UV.x),cos(time+768.0*UV.y)) ).xyz ;\n"
+    "}";
+
 void create_pbo(GLuint* color_pbo,
                 GLuint* depth_pbo) {
     glGenBuffers(1, color_pbo);
@@ -53,90 +84,41 @@ void update_textures_from_pbo(const GLuint pbo[2],
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
-GLuint create_shaders(const char* vertex_shader_path,
-                      const char* fragment_shader_path) {
+GLuint create_shaders() {
     GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
     GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-
-    char basedir[2000];
-    char complete_vs_path[2000];
-    char complete_fs_path[2000];
-    readlink("/proc/self/exe", basedir, sizeof(basedir));
-    strcat(basedir, "/");
-    strcpy(complete_vs_path, basedir);
-    strcpy(complete_fs_path, basedir);
-    strcat(complete_vs_path, vertex_shader_path);
-    strcat(complete_fs_path, vertex_shader_path);
-    printf("Found vertex shader: %s\n", complete_vs_path);
-    printf("Found fragment shader: %s\n", complete_fs_path);
-
-    // Read the VS
-    char* vertex_shader_str;
-    FILE* vertex_shader_file = fopen(complete_vs_path, "r");
-    if (vertex_shader_file) {
-        fseek(vertex_shader_file, 0L, SEEK_END);
-        int file_size = ftell(vertex_shader_file);
-        printf("VS is %i bytes long\n", file_size);
-        rewind(vertex_shader_file);
-
-        vertex_shader_str = malloc(file_size);
-        fread(vertex_shader_str, 1, file_size, vertex_shader_file);
-
-        fclose(vertex_shader_file);
-    } else {
-        printf("Unable to open %s\n", complete_vs_path);
-        exit(1);
-    }
-
-    // Read the FS
-    char* fragment_shader_str;
-    FILE* fragment_shader_file = fopen(complete_fs_path, "r");
-    if (fragment_shader_file) {
-        fseek(fragment_shader_file, 0L, SEEK_END);
-        int file_size = ftell(fragment_shader_file);
-        printf("FS is %i bytes long\n", file_size);
-        rewind(fragment_shader_file);
-
-        fragment_shader_str = malloc(file_size);
-        fread(fragment_shader_str, 1, file_size, fragment_shader_file);
-
-        fclose(fragment_shader_file);
-    } else {
-        printf("Unable to open %s\n", complete_fs_path);
-        exit(1);
-    }
 
     GLint ret = GL_FALSE;
     int log_size;
 
     // Compile Vertex Shader
     printf("Compiling VS\n");
-    glShaderSource(vertex_shader, 1, vertex_shader_str, NULL);
+    glShaderSource(vertex_shader, 1, &vertex_shader_str, NULL);
     glCompileShader(vertex_shader);
 
     // Vertex Shader Log
     glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &ret);
     glGetShaderiv(vertex_shader, GL_INFO_LOG_LENGTH, &log_size);
     if (log_size > 0) {
-        char* error_message = malloc(log_size + 1);
+        char* error_message = (char *) malloc(log_size + 1);
         glGetShaderInfoLog(vertex_shader, log_size, NULL, error_message);
         printf("%s\n", error_message);
-        free(error_message);
+        free((void*) error_message);
     }
 
     // Compile Fragment Shader
     printf("Compiling FS\n");
-    glShaderSource(fragment_shader, 1, fragment_shader_str, NULL);
+    glShaderSource(fragment_shader, 1, &fragment_shader_str, NULL);
     glCompileShader(fragment_shader);
 
     // Fragment Shader Log
     glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &ret);
     glGetShaderiv(fragment_shader, GL_INFO_LOG_LENGTH, &log_size);
     if (log_size > 0) {
-        char* error_message = malloc(log_size + 1);
+        char* error_message = (char *) malloc(log_size + 1);
         glGetShaderInfoLog(fragment_shader, log_size, NULL, error_message);
         printf("%s\n", error_message);
-        free(error_message);
+        free((void*) error_message);
     }
 
     // Link the program
@@ -150,9 +132,10 @@ GLuint create_shaders(const char* vertex_shader_path,
     glGetProgramiv(prog_id, GL_LINK_STATUS, &ret);
     glGetProgramiv(prog_id, GL_INFO_LOG_LENGTH, &log_size);
     if (log_size > 0) {
-        char* error_message = malloc(log_size + 1);
+        char* error_message = (char *) malloc(log_size + 1);
         glGetShaderInfoLog(prog_id, log_size, NULL, error_message);
         printf("%s\n", error_message);
+        free((void*) error_message);
     }
 
     glDetachShader(prog_id, vertex_shader);
@@ -160,9 +143,6 @@ GLuint create_shaders(const char* vertex_shader_path,
 
     glDeleteShader(vertex_shader);
     glDeleteShader(fragment_shader);
-
-    free(vertex_shader_str);
-    free(fragment_shader_str);
 
     return prog_id;
 }

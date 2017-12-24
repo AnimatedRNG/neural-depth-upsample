@@ -23,8 +23,7 @@ void update_textures_from_pbo(const GLuint pbo[2],
                               const GLuint textures[2],
                               const GLsizei x_res,
                               const GLsizei y_res);
-GLuint create_shaders(const char* vertex_shader_path,
-                      const char* fragment_shader_path);
+GLuint create_shaders();
 void render_image(const GLuint prog_id,
                   const bool downsample,
                   const bool depth,

@@ -95,8 +95,7 @@ void before_swap_buffers(Display* dpy,
 void after_make_current() {
     printf("Just made current\n");
     create_pbo(&(pbo[0]), &(pbo[1]));
-    create_shaders("passthrough.glsl",
-                   "render_tex.glsl");
+    create_shaders();
 }
 
 __PUBLIC void glXSwapBuffers(Display* dpy, GLXDrawable drawable) {
