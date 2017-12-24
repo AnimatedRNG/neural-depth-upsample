@@ -267,13 +267,6 @@ void write_image(const GLsizei x_res,
     printf("Pushing ID %i of size (%i, %i) into pipe\n", ID, x_res, y_res);
     printf("Color image pointer: %li\n", elem->color_image);
     pipe_push(producer, elem, 1);
-
-    /*size_t data_length;
-    void* data = tdefl_write_image_to_png_file_in_memory(raw_img, x_res, y_res, 3,
-                 &data_length);
-    FILE* fp = fopen("first.png", "wb");
-    fwrite(data, 1, data_length, fp);
-    fclose(fp);*/
 }
 
 void* frame_consumer_thread(void* consumer_ptr) {
