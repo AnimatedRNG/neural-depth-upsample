@@ -2,26 +2,36 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/stat.h>
 #include <stdbool.h>
 #include <dlfcn.h>
+#include <pthread.h>
 #include <X11/Xlib.h>
 #include <GL/gl.h>
 #include <GL/glx.h>
 #include <GL/glext.h>
 
 #include "elfhacks.h"
+#include "pipe.h"
 #include "hooks_dict.h"
 #include "capture_pbo.h"
 
 #define __PUBLIC __attribute__ ((visibility ("default")))
 
+#define THREADS 4
+
 HOOKS hooks;
 GLuint prog_id;
 GLuint pbo[2];
 GLuint texture[2];
+pthread_t threads[THREADS];
+pipe_producer_t* frame_producer;
+pipe_consumer_t* frame_writer[THREADS];
 GLsizei window_res_x = 100;
 GLsizei window_res_y = 100;
-int i = 0;
+int i = 1;
+bool init_dir = false;
+bool init_pipes = false;
 
 void get_real_dlsym(f_dlopen_t* f_dlopen,
                     f_dlsym_t* f_dlsym,
@@ -51,7 +61,8 @@ void get_real_dlsym(f_dlopen_t* f_dlopen,
     eh_destroy_obj(&libdl);
 }
 
-void init_hook_info(const bool need_glx_calls, const bool need_gl_calls) {
+void init_hook_info(const bool need_glx_calls,
+                    const bool need_gl_calls) {
     hooks.init = true;
     get_real_dlsym(&(hooks.f_dlopen), &(hooks.f_dlsym), &(hooks.f_dlvsym));
 
@@ -78,6 +89,48 @@ void init_hook_info(const bool need_glx_calls, const bool need_gl_calls) {
                                     hooks.f_dlsym(hooks.libGL_handle,
                                             "glBindFramebuffer");
     }
+
+    if (!init_pipes) {
+        // Create our file pipes
+        // ID, width, height, color texture pointer, depth texture pointer
+        pipe_t* pipe = pipe_new(sizeof(buffer_element), 20);
+
+        frame_producer = pipe_producer_new(pipe);
+        for (int j = 0; j < THREADS; j++) {
+            frame_writer[j] = pipe_consumer_new(pipe);
+        }
+        pipe_free(pipe);
+
+        for (int j = 0; j < THREADS; j++) {
+            pthread_create(&(threads[j]), NULL, frame_consumer_thread,
+                           (void*) frame_writer[j]);
+        }
+
+        init_pipes = true;
+    }
+
+    if (!init_dir) {
+        DIR* dir = opendir(DEPTH_UPSAMPLE_DIR);
+        struct dirent* ret;
+        if (dir) {
+            while ((ret = readdir(dir)) != NULL) {
+                if (strcmp(ret->d_name, ".") == 0 ||
+                        strcmp(ret->d_name, "..") == 0) {
+                    continue;
+                }
+                char file_path[300];
+                memset(file_path, 0, sizeof(file_path));
+                strcat(file_path, DEPTH_UPSAMPLE_DIR);
+                strcat(file_path, ret->d_name);
+                printf("Deleting %s\n", file_path);
+                remove(file_path);
+            }
+        } else {
+            printf("Creating dir\n");
+            mkdir(DEPTH_UPSAMPLE_DIR, 0700);
+        }
+        init_dir = true;
+    }
 }
 
 void before_swap_buffers(Display* dpy,
@@ -85,9 +138,7 @@ void before_swap_buffers(Display* dpy,
     printf("Before swap buffers\n");
     read_into_pbo(pbo, window_res_x, window_res_y);
     update_textures_from_pbo(pbo, texture, window_res_x, window_res_y);
-    if (++i % 15 == 0) {
-        write_image(window_res_x, window_res_y, texture[0]);
-    }
+    write_image(window_res_x, window_res_y, texture[0], ++i, frame_producer);
     //render_image(hooks, prog_id, texture, false, false, window_res_x, window_res_y);
     hooks.__glXSwapBuffers(dpy, drawable);
     printf("After swap buffers\n");
@@ -96,7 +147,7 @@ void before_swap_buffers(Display* dpy,
 void after_make_current() {
     printf("Just made current\n");
     create_pbo(&(pbo[0]), &(pbo[1]));
-    prog_id = create_shaders();
+    //prog_id = create_shaders();
 }
 
 __PUBLIC void glXSwapBuffers(Display* dpy, GLXDrawable drawable) {
