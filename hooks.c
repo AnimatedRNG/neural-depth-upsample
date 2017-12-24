@@ -18,7 +18,7 @@
 
 #define __PUBLIC __attribute__ ((visibility ("default")))
 
-#define THREADS 4
+#define THREADS 8
 
 HOOKS hooks;
 GLuint pbo[2];
@@ -92,7 +92,7 @@ void init_hook_info(const bool need_glx_calls,
     if (!init_pipes) {
         // Create our file pipes
         // ID, width, height, color texture pointer, depth texture pointer
-        pipe_t* pipe = pipe_new(sizeof(buffer_element), 20);
+        pipe_t* pipe = pipe_new(sizeof(buffer_element), 200);
 
         frame_producer = pipe_producer_new(pipe);
         for (int j = 0; j < THREADS; j++) {
