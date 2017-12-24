@@ -137,7 +137,9 @@ void before_swap_buffers(Display* dpy,
     printf("Before swap buffers\n");
     read_into_pbo(pbo, window_res_x, window_res_y);
     update_textures_from_pbo(pbo, texture, window_res_x, window_res_y);
-    write_image(window_res_x, window_res_y, texture[0], ++i, frame_producer);
+    if (++i % 30 == 0) {
+        write_image(window_res_x, window_res_y, texture, i, frame_producer);
+    }
     hooks.__glXSwapBuffers(dpy, drawable);
     printf("After swap buffers\n");
 }

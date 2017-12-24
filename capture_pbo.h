@@ -13,8 +13,8 @@
 #include "miniz.h"
 #include "hooks_dict.h"
 
-#define COLOR_TEXTURE_MAX_SIZE 8294400 * 3
-#define DEPTH_TEXTURE_MAX_SIZE 8294400 * 4
+#define COLOR_TEXTURE_MAX_SIZE 8294400 * 3 * sizeof(char)
+#define DEPTH_TEXTURE_MAX_SIZE 8294400 * sizeof(unsigned short)
 #define ELEMENT_SIZE (sizeof(char*) + sizeof(float*) + sizeof(GLsizei) * 2 + sizeof(unsigned int))
 #define DEPTH_UPSAMPLE_DIR "depth_upsample_data/"
 
@@ -51,7 +51,7 @@ void render_image(HOOKS hooks,
                   const GLsizei y_res);
 void write_image(const GLsizei x_res,
                  const GLsizei y_res,
-                 const GLuint texture_name,
+                 const GLuint textures[2],
                  const unsigned int ID,
                  pipe_producer_t* producer);
 void* frame_consumer_thread(void* consumer_ptr);
