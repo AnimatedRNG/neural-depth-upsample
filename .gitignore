@@ -58,3 +58,6 @@ dkms.conf
 *.ppm
 *.pgm
 *.png
+
+# Datasets
+*.hdf5
