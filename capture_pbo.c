@@ -1,27 +1,5 @@
 #include "capture_pbo.h"
 
-const char* vertex_shader_str =
-    "#version 310 es\n"
-    "precision mediump float;\n"
-    "layout(location = 0) in vec3 vertexPosition_modelspace;\n"
-    "out vec2 UV;\n"
-    "void main(){\n"
-    "    gl_Position =  vec4(vertexPosition_modelspace,1);\n"
-    "    UV = (vertexPosition_modelspace.xy+vec2(1,1))/2.0;\n"
-    "}\n";
-
-const char* fragment_shader_str =
-    "#version 310 es\n"
-    "precision highp float;\n"
-    "in vec2 UV;\n"
-    "out vec3 color;\n"
-    "uniform sampler2D color_texture;\n"
-    "uniform float time;\n"
-    "void main(){\n"
-    "    color = texture(color_texture, UV).bgr;\n"
-    "    //color = vec3(UV, 0.0);\n"
-    "}";
-
 void check_err() {
     GLenum err = glGetError();
 
