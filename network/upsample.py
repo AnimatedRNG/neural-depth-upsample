@@ -12,6 +12,7 @@ from keras.models import Sequential, load_model
 from keras.layers import Dense, Dropout, Activation, Flatten, Reshape
 from keras.layers import Conv2D, MaxPooling2D
 from keras.layers import GaussianNoise, GaussianDropout
+from keras.optimizers import Adam
 from keras.wrappers.scikit_learn import KerasRegressor
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import KFold
@@ -36,7 +37,7 @@ def downsample(img):
 
 def show_image(img, label='Depth Image', wait_period=0):
     cv2.imshow(label, cv2.resize(img, (1600, 900),
-                                 interpolation=cv2.INTER_LINEAR))
+                                 interpolation=cv2.INTER_NEAREST))
     cv2.waitKey(wait_period)
 
 
@@ -60,20 +61,20 @@ def create_convnet_model():
     model.add(Conv2D(128, (3, 3), padding='valid',
                      data_format="channels_last",
                      activation='relu', input_shape=(7, 7, 4)))
-    #model.add(GaussianDropout(0.1))
     model.add(Conv2D(128, (3, 3), padding='valid',
                      data_format="channels_last",
-                     activation='relu', input_shape=(5, 5, 128)))
+                     activation='relu'))
     model.add(Conv2D(128, (2, 2), padding='valid',
                      data_format="channels_last",
-                     activation='relu', input_shape=(3, 3, 128)))
+                     activation='relu'))
     model.add(Conv2D(128, (1, 1), padding='same',
                      data_format="channels_last",
-                     activation='relu', input_shape=(2, 2, 128)))
-    model.add(Flatten(input_shape=(2, 2, 128)))
-    model.add(Dense(500, activation='relu', input_shape=(2 * 2 * 128,)))
-    model.add(Dense(2 * 2 * 3, activation='linear', input_shape=(128,)))
-    model.add(Reshape((2, 2, 3), input_shape=(2 * 2 * 3,)))
+                     activation='relu'))
+    model.add(Flatten())
+    model.add(Dense(400, activation='relu'))
+    model.add(Dense(30, activation='relu'))
+    model.add(Dense(2 * 2 * 3, activation='linear'))
+    model.add(Reshape((2, 2, 3)))
 
     return model
 
@@ -96,10 +97,11 @@ def create_simple_model():
 
 def train_model(model, data, save_file='model.h5', weights_file='weights.h5'):
     X_train, Y_train, X_test, Y_test = data
+    adam = Adam(lr=0.001, decay=0.0)
     model.compile(loss='mean_absolute_error',
-                  optimizer='adam', metrics=['accuracy'])
-    model.fit(X_train, Y_train, batch_size=128,
-              epochs=10, verbose=1, validation_split=0.1)
+                  optimizer=adam, metrics=['accuracy'])
+    model.fit(X_train, Y_train, batch_size=256,
+              epochs=3, verbose=1, validation_split=0.1)
     score = model.evaluate(X_test, Y_test, verbose=1)
     print(score)
     model.save(save_file)
@@ -126,8 +128,8 @@ def exec_on_image(img, model):
 def test_on_image_pair(color_image_filename,
                        depth_image_filename,
                        model):
-    i = 600
-    j = 400
+    i = 800
+    j = 1000
     r_x = 100
     r_y = 100
     depth_img = read_depth_img(depth_image_filename)
@@ -154,6 +156,14 @@ def test_on_image_pair(color_image_filename,
     show_image(upscaled)
     cv2.imwrite("upscaled_res.png", upscaled * 255)
 
+def visualize_dataset(data):
+    X_train, Y_train, X_test, Y_test = data
+    for i in range(5000, 5300):
+        patch = X_test[i]
+        high_res = Y_test[i]
+
+        show_image(patch)
+        show_image(high_res)
 
 if __name__ == '__main__':
     assert(len(argv) == 2 or len(argv) == 3)
@@ -161,6 +171,10 @@ if __name__ == '__main__':
         assert(len(argv) == 3)
         model = load_model(argv[2])
         test_on_image_pair('color_test.png', 'depth_test.pgm', model)
+    elif argv[1] == 'visualize':
+        assert(len(argv) == 3)
+        data = load_data(argv[2])
+        visualize_dataset(data)
     else:
         assert(len(argv) == 2)
         data = load_data(argv[1])
