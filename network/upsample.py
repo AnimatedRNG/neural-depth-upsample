@@ -2,7 +2,7 @@
 
 import cv2
 import numpy as np
-from numpy import uint32, float32, sqrt
+from numpy import uint32, float32, sqrt, stack
 from sys import argv, exit
 
 import h5py
@@ -71,7 +71,7 @@ def create_convnet_model():
                      data_format="channels_last",
                      activation='relu'))
     model.add(Flatten())
-    model.add(Dense(400, activation='relu'))
+    model.add(Dense(100, activation='relu'))
     model.add(Dense(30, activation='relu'))
     model.add(Dense(2 * 2 * 3, activation='linear'))
     model.add(Reshape((2, 2, 3)))
@@ -128,8 +128,8 @@ def exec_on_image(img, model):
 def test_on_image_pair(color_image_filename,
                        depth_image_filename,
                        model):
-    i = 800
-    j = 1000
+    i = 200
+    j = 750
     r_x = 100
     r_y = 100
     depth_img = read_depth_img(depth_image_filename)
