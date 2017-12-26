@@ -72,7 +72,7 @@ def generate_image_data(image, high_res_image, hash_table,
 def write_results_to_file(patches_np, results_np):
     with h5py.File("output.hdf5", "w") as f:
         len_samples = patches_np.shape[0]
-        training_samples = int(0.7 * len_samples)
+        training_samples = int(0.9 * len_samples)
         train_np = (patches_np[:training_samples],
                     results_np[:training_samples])
         test_np = (patches_np[training_samples:],
