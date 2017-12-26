@@ -46,21 +46,17 @@ def create_convnet_model():
     model.add(Conv2D(96, (3, 3), padding='valid',
                      data_format="channels_last",
                      activation='relu', input_shape=(7, 7, 4)))
-    model.add(Dropout(0.1, input_shape=(5, 5, 96)))
     model.add(Conv2D(128, (3, 3), padding='valid',
                      data_format="channels_last",
                      activation='relu', input_shape=(5, 5, 96)))
-    model.add(Dropout(0.25, input_shape=(3, 3, 128)))
     model.add(Conv2D(256, (2, 2), padding='valid',
                      data_format="channels_last",
                      activation='relu', input_shape=(3, 3, 128)))
-    model.add(Dropout(0.25, input_shape=(2, 2, 256)))
     model.add(Conv2D(256, (1, 1), padding='same',
                      data_format="channels_last",
                      activation='relu', input_shape=(2, 2, 256)))
     model.add(Flatten(input_shape=(2, 2, 256)))
     model.add(Dense(128, activation='relu', input_shape=(2 * 2 * 256,)))
-    model.add(Dropout(0.25, input_shape=(128,)))
     model.add(Dense(2 * 2 * 3, activation='relu', input_shape=(128,)))
     model.add(Reshape((2, 2, 3), input_shape=(2 * 2 * 3,)))
 
