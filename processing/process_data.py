@@ -23,7 +23,7 @@ def read_color_img(name):
 
 
 def show_image(img, label='Depth Image', wait_period=0):
-    cv2.imshow(label, cv2.resize(img, (3200, 1800),
+    cv2.imshow(label, cv2.resize(img, (1600, 900),
                                  interpolation=cv2.INTER_NEAREST))
     cv2.waitKey(wait_period)
 
@@ -86,19 +86,11 @@ def write_results_to_file(patches_np, results_np):
 
 
 if __name__ == '__main__':
-    img_depth = read_depth_img('270_depth.pgm')
-    img_color = read_color_img('270_color.png').astype(float32)
-    downsampled_depth = downsample(img_depth)
-    downsampled_color = downsample(img_color).astype(float32)
-    downsampled_depth = \
-        np.reshape(downsampled_depth,
-                   (downsampled_depth.shape[0], downsampled_depth.shape[1],
-                    1)) ** 32
-    downsampled_combined = np.append(
-        downsampled_color, downsampled_depth, axis=2).astype(float32)
+    hash_table_np = np.zeros((50000000, 2, 2), dtype=np.uint64)
+    all_patches = np.zeros((2700000, 7, 7, 4), dtype=np.float32)
+    all_results = np.zeros((2700000, 2, 2, 3), dtype=np.float32)
 
     # Entries are (hash_value, id)
-    hash_table_np = np.zeros((5000000, 2, 2), dtype=np.uint64)
     patches_np = np.zeros((2000000, 7, 7, 4), dtype=np.float32)
     results_np = np.zeros((2000000, 2, 2, 3), dtype=np.float32)
 
@@ -106,13 +98,45 @@ if __name__ == '__main__':
         mod = SourceModule(f.read(), include_dirs=[
             abspath('./')],
             no_extern_c=True)
-    #show_image(downsampled_combined[:, :, 3])
-    show_image(img_depth ** 30)
-    show_image(img_color)
-    end = generate_image_data(downsampled_combined,
-                              img_color,
-                              hash_table_np,
-                              patches_np,
-                              results_np,
-                              mod.get_function('image_hash'))
-    write_results_to_file(patches_np[:end], results_np[:end])
+
+    num_results = 0
+    for i in range(210, 1320, 30):
+        img_depth = read_depth_img('{}_depth.pgm'.format(i))
+        img_color = read_color_img('{}_color.png'.format(i)).astype(float32)
+        downsampled_depth = downsample(img_depth)
+        downsampled_color = downsample(img_color).astype(float32)
+        downsampled_depth = \
+            np.reshape(downsampled_depth,
+                       (downsampled_depth.shape[0],
+                        downsampled_depth.shape[1], 1)) ** 32
+        downsampled_combined = np.append(
+            downsampled_color, downsampled_depth, axis=2).astype(float32)
+
+        #show_image(downsampled_combined[:, :, 3])
+        show_image(img_depth ** 30, 'Image', 100)
+        show_image(img_color, 'Image', 100)
+        end = generate_image_data(downsampled_combined,
+                                  img_color,
+                                  hash_table_np,
+                                  patches_np,
+                                  results_np,
+                                  mod.get_function('image_hash'))
+
+        if num_results + end >= all_patches.shape[0]:
+            end = all_patches.shape[0] - num_results
+
+        all_patches[num_results:num_results + end] = patches_np[:end]
+        all_results[num_results:num_results + end] = results_np[:end]
+
+        patches_np.fill(0)
+        results_np.fill(0)
+
+        num_results += end
+
+        print("Num samples: {}".format(num_results))
+
+        if num_results == all_patches.shape[0]:
+            break
+
+    write_results_to_file(all_patches[:num_results],
+                          all_results[:num_results])

@@ -1,5 +1,12 @@
-#include "stdio.h"
+#include <stdio.h>
+#include <math.h>
 #include "helper_math.h"
+
+__device__ float rand(float x, float y){
+    //return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
+    float a = sin(x * 12.9898 + y * 78.233) * 43758.5453;
+    return a - floor(a);
+}
 
 extern "C"
 __global__ void image_hash(
@@ -25,6 +32,16 @@ __global__ void image_hash(
     float luma[7][7];
     float average = 0.0;
     unsigned int num_nonzero = 0;
+
+    // Very inefficient
+    int ordering[3];
+    int start = global_id % 3;
+    int a = 0;
+    for (int i = start; i < start + 3; i++) {
+        ordering[a++] = i % 3;
+    }
+
+    float brightness = 1.0 + rand((float) center_i, (float) center_j) * 0.2;
     
     for (int offset_i = 0; offset_i < 2; offset_i++) {
         for (int offset_j = 0; offset_j < 2; offset_j++) {
@@ -33,11 +50,11 @@ __global__ void image_hash(
             int ind = 3 * (i * (height * 2) + j);
             
             high_res[offset_i][offset_j][0] =
-                high_res_image[ind];
+                high_res_image[ind + ordering[0]] * brightness;
             high_res[offset_i][offset_j][1] =
-                high_res_image[ind + 1];
+                high_res_image[ind + ordering[1]] * brightness;
             high_res[offset_i][offset_j][2] =
-                high_res_image[ind + 2];
+                high_res_image[ind + ordering[2]] * brightness;
         }
     }
     
@@ -56,9 +73,9 @@ __global__ void image_hash(
             int image_index = 0;
             if (i >= 0 && j >= 0 && i < width && i < height) {
                 image_index = 4 * (i * height + j);
-                r = image[image_index];
-                g = image[image_index + 1];
-                b = image[image_index + 2];
+                r = image[image_index + ordering[0]] * brightness;
+                g = image[image_index + ordering[1]] * brightness;
+                b = image[image_index + ordering[2]] * brightness;
                 d = image[image_index + 3];
                 num_nonzero++;
             }
