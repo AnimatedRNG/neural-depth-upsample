@@ -55,7 +55,6 @@ def generate_image_data(image, high_res_image, hash_table,
          grid=(resolution[0] // bs, resolution[1] // bs, 1))
     print(counter)
     print(counter2)
-    print(patches_array.size * 4)
     '''for k in range(0, 30000):
         ind = hash_table[k // 2][k % 2][1]
         if ind == 0:
@@ -67,13 +66,17 @@ def generate_image_data(image, high_res_image, hash_table,
         high_res = results_array[ind, :, :, :3]
         show_image(patch, 'Depth Image', 0)
         show_image(high_res, 'Depth Image', 0)'''
+    return counter[0]
 
 
 def write_results_to_file(patches_np, results_np):
     with h5py.File("output.hdf5", "w") as f:
         len_samples = patches_np.shape[0]
-        train_np = (patches_np[:len_samples], results_np[:len_samples])
-        test_np = (patches_np[len_samples:], results_np[len_samples:])
+        training_samples = int(0.7 * len_samples)
+        train_np = (patches_np[:training_samples],
+                    results_np[:training_samples])
+        test_np = (patches_np[training_samples:],
+                   results_np[training_samples:])
         train_dset = f.create_group('train')
         test_dset = f.create_group('test')
         train_dset.create_dataset('features', data=train_np[0])
@@ -106,10 +109,10 @@ if __name__ == '__main__':
     #show_image(downsampled_combined[:, :, 3])
     show_image(img_depth ** 30)
     show_image(img_color)
-    generate_image_data(downsampled_combined,
-                        img_color,
-                        hash_table_np,
-                        patches_np,
-                        results_np,
-                        mod.get_function('image_hash'))
-    write_results_to_file(patches_np, results_np)
+    end = generate_image_data(downsampled_combined,
+                              img_color,
+                              hash_table_np,
+                              patches_np,
+                              results_np,
+                              mod.get_function('image_hash'))
+    write_results_to_file(patches_np[:end], results_np[:end])
