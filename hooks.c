@@ -38,22 +38,22 @@ void get_real_dlsym(f_dlopen_t* f_dlopen,
     eh_obj_t libdl;
 
     if (eh_find_obj(&libdl, "*libdl.so*")) {
-        fprintf(stderr, "(glc) libdl.so is not present in memory\n");
+        fprintf(stderr, "libdl.so is not present in memory\n");
         exit(1);
     }
 
     if (eh_find_sym(&libdl, "dlopen", (void*) f_dlopen)) {
-        fprintf(stderr, "(glc) can't get real dlopen()\n");
+        fprintf(stderr, "Can't get real dlopen()\n");
         exit(1);
     }
 
     if (eh_find_sym(&libdl, "dlsym", (void*) f_dlsym)) {
-        fprintf(stderr, "(glc) can't get real dlsym()\n");
+        fprintf(stderr, "Can't get real dlsym()\n");
         exit(1);
     }
 
     if (eh_find_sym(&libdl, "dlvsym", (void*) f_dlvsym)) {
-        fprintf(stderr, "(glc) can't get real dlvsym()\n");
+        fprintf(stderr, "Can't get real dlvsym()\n");
         exit(1);
     }
 
