@@ -33,7 +33,7 @@ def downsample(img):
                       fy=0.5, interpolation=cv2.INTER_NEAREST)
 
 
-def generate_image_data(image, high_res_image, hash_table,
+def generate_image_data(image, high_res_image,
                         patches_array, results_array, func):
     counter = np.zeros(1, dtype=uint32)
     counter2 = np.zeros(1, dtype=uint32)
@@ -43,9 +43,6 @@ def generate_image_data(image, high_res_image, hash_table,
          drv.InOut(high_res_image),
          uint32(image.shape[0]),
          uint32(image.shape[1]),
-         drv.InOut(hash_table),
-         uint32(hash_table.shape[0]),
-         uint32(hash_table.shape[1]),
          drv.InOut(patches_array),
          drv.InOut(results_array),
          uint32(patches_array.shape[0]),
@@ -86,21 +83,20 @@ def write_results_to_file(patches_np, results_np):
 
 
 if __name__ == '__main__':
-    hash_table_np = np.zeros((50000000, 2, 2), dtype=np.uint64)
     all_patches = np.zeros((2700000, 7, 7, 4), dtype=np.float32)
     all_results = np.zeros((2700000, 2, 2, 3), dtype=np.float32)
 
-    # Entries are (hash_value, id)
     patches_np = np.zeros((2000000, 7, 7, 4), dtype=np.float32)
     results_np = np.zeros((2000000, 2, 2, 3), dtype=np.float32)
 
-    with open('fast_hash.cu', 'r') as f:
+    with open('patches.cu', 'r') as f:
         mod = SourceModule(f.read(), include_dirs=[
             abspath('./')],
             no_extern_c=True)
 
     num_results = 0
-    for i in range(210, 1320, 30):
+    #for i in range(210, 1320, 30):
+    for i in range(30, 300, 30):
         img_depth = read_depth_img('{}_depth.pgm'.format(i))
         img_color = read_color_img('{}_color.png'.format(i)).astype(float32)
         downsampled_depth = downsample(img_depth)
@@ -113,11 +109,10 @@ if __name__ == '__main__':
             downsampled_color, downsampled_depth, axis=2).astype(float32)
 
         #show_image(downsampled_combined[:, :, 3])
-        show_image(img_depth ** 30, 'Image', 100)
-        show_image(img_color, 'Image', 100)
+        show_image(img_depth ** 30, 'Image', 0)
+        show_image(img_color, 'Image', 0)
         end = generate_image_data(downsampled_combined,
                                   img_color,
-                                  hash_table_np,
                                   patches_np,
                                   results_np,
                                   mod.get_function('image_hash'))
