@@ -76,10 +76,12 @@ def create_results_file(size_in_bytes=10000000000, chunk_size=1000):
 
 
 def append_results_to_file(patches_np, results_np, current_end_train, current_end_test):
+    print("Appending to file...")
     with h5py.File("output.hdf5", "r+") as f:
         len_samples = patches_np.shape[0]
         training_samples = int(0.9 * len_samples)
-        testing_samples = len_samples - int(0.9 * len_samples)
+        testing_samples = len_samples - training_samples
+
         f['train']['features'][current_end_train:current_end_train + training_samples] = \
             patches_np[:training_samples]
         f['train']['predictions'][current_end_train:current_end_train + training_samples] = \
@@ -88,7 +90,7 @@ def append_results_to_file(patches_np, results_np, current_end_train, current_en
             patches_np[training_samples:]
         f['test']['predictions'][current_end_test:current_end_test + testing_samples] = \
             results_np[training_samples:]
-    return (training_samples + len_samples, testing_samples + len_samples)
+    return (current_end_train + training_samples, current_end_test + testing_samples)
 
 
 def write_results_to_file(patches_np, results_np):

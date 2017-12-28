@@ -43,17 +43,18 @@ def show_image(img, label='Depth Image', wait_period=0):
 
 
 def keras_format_data(data):
-    return data.astype(float32)
+    # return data.astype(float32)
+    return data
 
 
 def load_data(filename):
-    with h5py.File(filename, 'r') as f:
-        X_train = keras_format_data(f['train']['features'][:])
-        X_test = keras_format_data(f['test']['features'][:])
-        Y_train = keras_format_data(f['train']['predictions'][:])
-        Y_test = keras_format_data(f['test']['predictions'][:])
+    f = h5py.File(filename, 'r')
+    X_train = keras_format_data(f['train']['features'])
+    X_test = keras_format_data(f['test']['features'])
+    Y_train = keras_format_data(f['train']['predictions'])
+    Y_test = keras_format_data(f['test']['predictions'])
 
-        return (X_train, Y_train, X_test, Y_test)
+    return (X_train, Y_train, X_test, Y_test)
 
 
 def create_convnet_model():
@@ -165,14 +166,17 @@ def test_on_image_pair(color_image_filename,
     show_image(upscaled)
     cv2.imwrite("upscaled_res.png", upscaled * 255)
 
+
 def visualize_dataset(data):
     X_train, Y_train, X_test, Y_test = data
-    for i in range(5000, 5300):
+    print(X_test)
+    for i in range(X_test.shape[0] - 5000, X_test.shape[0]):
         patch = X_test[i]
         high_res = Y_test[i]
 
         show_image(patch)
         show_image(high_res)
+
 
 if __name__ == '__main__':
     assert(len(argv) == 2 or len(argv) == 3)
