@@ -4,6 +4,8 @@ import cv2
 import numpy as np
 from numpy import uint32, float32, sqrt
 from os.path import abspath
+from os import listdir
+from sys import argv
 
 import pycuda.autoinit
 import pycuda.driver as drv
@@ -52,6 +54,43 @@ def generate_image_data(image, high_res_image,
     return counter[0]
 
 
+def create_results_file(size_in_bytes=10000000000, chunk_size=1000):
+    num_elements = size_in_bytes // (7 * 7 * 4)
+    with h5py.File("output.hdf5", "w") as f:
+        train_dset = f.create_group('train')
+        test_dset = f.create_group('test')
+
+        train_dset.create_dataset(
+            "features", (num_elements, 7, 7, 4),
+            chunks=(chunk_size, 7, 7, 4), dtype='f4')
+        train_dset.create_dataset(
+            "predictions", (num_elements, 2, 2, 3),
+            chunks=(chunk_size, 2, 2, 3), dtype='f4')
+
+        test_dset.create_dataset(
+            "features", (num_elements, 7, 7, 4),
+            chunks=(chunk_size, 7, 7, 4), dtype='f4')
+        test_dset.create_dataset(
+            "predictions", (num_elements, 2, 2, 3),
+            chunks=(chunk_size, 2, 2, 3), dtype='f4')
+
+
+def append_results_to_file(patches_np, results_np, current_end_train, current_end_test):
+    with h5py.File("output.hdf5", "r+") as f:
+        len_samples = patches_np.shape[0]
+        training_samples = int(0.9 * len_samples)
+        testing_samples = len_samples - int(0.9 * len_samples)
+        f['train']['features'][current_end_train:current_end_train + training_samples] = \
+            patches_np[:training_samples]
+        f['train']['predictions'][current_end_train:current_end_train + training_samples] = \
+            results_np[:training_samples]
+        f['test']['features'][current_end_test:current_end_test + testing_samples] = \
+            patches_np[training_samples:]
+        f['test']['predictions'][current_end_test:current_end_test + testing_samples] = \
+            results_np[training_samples:]
+    return (training_samples + len_samples, testing_samples + len_samples)
+
+
 def write_results_to_file(patches_np, results_np):
     with h5py.File("output.hdf5", "w") as f:
         len_samples = patches_np.shape[0]
@@ -68,9 +107,29 @@ def write_results_to_file(patches_np, results_np):
         test_dset.create_dataset('predictions', data=test_np[1])
 
 
+def truncate_file(current_end_training, current_end_testing):
+    with h5py.File("output.hdf5", "r+") as f:
+        f['train']['features'].resize((current_end_training, 7, 7, 4))
+        f['train']['predictions'].resize((current_end_training, 2, 2, 3))
+
+        f['test']['features'].resize((current_end_testing, 7, 7, 4))
+        f['test']['predictions'].resize((current_end_testing, 2, 2, 3))
+
+
+def get_image_filenumbers_in_dir(directory):
+    file_set = set(listdir(directory))
+    file_names = []
+    for filename in listdir(directory):
+        if filename.endswith("_color.png"):
+            number = filename[:-10]
+            print("File number: {}".format(number))
+            if number + "_depth.pgm" in file_set:
+                file_names.append(number)
+    return file_names
+
+
 if __name__ == '__main__':
-    all_patches = np.zeros((2700000, 7, 7, 4), dtype=np.float32)
-    all_results = np.zeros((2700000, 2, 2, 3), dtype=np.float32)
+    assert len(argv) == 2
 
     patches_np = np.zeros((2000000, 7, 7, 4), dtype=np.float32)
     results_np = np.zeros((2000000, 2, 2, 3), dtype=np.float32)
@@ -80,9 +139,11 @@ if __name__ == '__main__':
             abspath('./')],
             no_extern_c=True)
 
-    num_results = 0
-    #for i in range(210, 1320, 30):
-    for i in range(30, 300, 30):
+    create_results_file()
+
+    num_results_training, num_results_testing = 0, 0
+    # for i in range(210, 1320, 30):
+    for i in get_image_filenumbers_in_dir(argv[1]):
         img_depth = read_depth_img('{}_depth.pgm'.format(i))
         img_color = read_color_img('{}_color.png'.format(i)).astype(float32)
         downsampled_depth = downsample(img_depth)
@@ -94,7 +155,7 @@ if __name__ == '__main__':
         downsampled_combined = np.append(
             downsampled_color, downsampled_depth, axis=2).astype(float32)
 
-        #show_image(downsampled_combined[:, :, 3])
+        # show_image(downsampled_combined[:, :, 3])
         show_image(img_depth ** 30, 'Image', 0)
         show_image(img_color, 'Image', 0)
         end = generate_image_data(downsampled_combined,
@@ -103,21 +164,16 @@ if __name__ == '__main__':
                                   results_np,
                                   mod.get_function('image_hash'))
 
-        if num_results + end >= all_patches.shape[0]:
-            end = all_patches.shape[0] - num_results
-
-        all_patches[num_results:num_results + end] = patches_np[:end]
-        all_results[num_results:num_results + end] = results_np[:end]
+        num_results_training, num_results_testing = \
+            append_results_to_file(patches_np[:end], results_np[:end],
+                                   num_results_training, num_results_testing)
 
         patches_np.fill(0)
         results_np.fill(0)
 
-        num_results += end
+        print("Num samples (training): {}".format(num_results_training))
+        print("Num samples (testing): {}".format(num_results_testing))
 
-        print("Num samples: {}".format(num_results))
-
-        if num_results == all_patches.shape[0]:
+        if (num_results_training >= 12000000):
             break
-
-    write_results_to_file(all_patches[:num_results],
-                          all_results[:num_results])
+    truncate_file(num_results_training, num_results_testing)
