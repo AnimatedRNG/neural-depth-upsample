@@ -16,8 +16,8 @@ __global__ void image_hash(
     unsigned int height,
     float* patches,
     float* results,
-    unsigned int patches_length, unsigned int* atomic_counter,
-    unsigned int* other_atomic_counter) {
+    unsigned int patches_length,
+    unsigned int* atomic_counter) {
     const uint center_i = threadIdx.x + blockIdx.x * blockDim.x;
     const uint center_j = threadIdx.y + blockIdx.y * blockDim.y;
     const uint center_k = threadIdx.z + blockIdx.z * blockDim.z;

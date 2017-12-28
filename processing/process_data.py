@@ -36,8 +36,7 @@ def downsample(img):
 def generate_image_data(image, high_res_image,
                         patches_array, results_array, func):
     counter = np.zeros(1, dtype=uint32)
-    counter2 = np.zeros(1, dtype=uint32)
-    bs = 32
+    bs = 16
     resolution = image.shape
     func(drv.InOut(image),
          drv.InOut(high_res_image),
@@ -47,22 +46,9 @@ def generate_image_data(image, high_res_image,
          drv.InOut(results_array),
          uint32(patches_array.shape[0]),
          drv.InOut(counter),
-         drv.InOut(counter2),
          block=(bs, bs, 1),
          grid=(resolution[0] // bs, resolution[1] // bs, 1))
     print(counter)
-    print(counter2)
-    '''for k in range(0, 30000):
-        ind = hash_table[k // 2][k % 2][1]
-        if ind == 0:
-            continue
-        print(hash_table[k // 2])
-        print("Checking index: {}".format(ind))
-        print(patches_array[ind, :, :, 0])
-        patch = patches_array[ind, :, :, :3]
-        high_res = results_array[ind, :, :, :3]
-        show_image(patch, 'Depth Image', 0)
-        show_image(high_res, 'Depth Image', 0)'''
     return counter[0]
 
 
