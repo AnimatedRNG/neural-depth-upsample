@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 from numpy import uint32, float32, sqrt, stack
 from sys import argv, exit
+from os.path import isfile
 
 import h5py
 
@@ -72,7 +73,7 @@ def create_convnet_model():
                      activation='relu'))
     model.add(Flatten())
     model.add(Dense(100, activation='relu'))
-    model.add(Dense(30, activation='relu'))
+    model.add(Dense(100, activation='relu'))
     model.add(Dense(2 * 2 * 3, activation='linear'))
     model.add(Reshape((2, 2, 3)))
 
@@ -130,10 +131,18 @@ def test_on_image_pair(color_image_filename,
                        model):
     i = 200
     j = 750
+    #i = 0
+    #j = 0
     r_x = 100
     r_y = 100
-    depth_img = read_depth_img(depth_image_filename)
     color_img = read_color_img(color_image_filename)
+
+    if isfile(depth_image_filename):
+        depth_img = read_depth_img(depth_image_filename)
+    else:
+        depth_img = np.full((color_img.shape[0], color_img.shape[1]),
+                            0.950011444,
+                            dtype=np.float32)
 
     downsampled_depth = downsample(depth_img)
     downsampled_color = downsample(color_img).astype(float32)
