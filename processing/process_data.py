@@ -25,7 +25,7 @@ def read_color_img(name):
 
 
 def show_image(img, label='Depth Image', wait_period=0):
-    cv2.imshow(label, cv2.resize(img, (1600, 900),
+    cv2.imshow(label, cv2.resize(img, (1920, 1080),
                                  interpolation=cv2.INTER_NEAREST))
     cv2.waitKey(wait_period)
 
@@ -144,7 +144,6 @@ if __name__ == '__main__':
     create_results_file()
 
     num_results_training, num_results_testing = 0, 0
-    # for i in range(210, 1320, 30):
     for i in get_image_filenumbers_in_dir(argv[1]):
         img_depth = read_depth_img('{}_depth.pgm'.format(i))
         img_color = read_color_img('{}_color.png'.format(i)).astype(float32)
@@ -158,8 +157,8 @@ if __name__ == '__main__':
             downsampled_color, downsampled_depth, axis=2).astype(float32)
 
         # show_image(downsampled_combined[:, :, 3])
-        show_image(img_depth ** 30, 'Image', 0)
-        show_image(img_color, 'Image', 0)
+        show_image(img_depth ** 30, 'Image', 500)
+        show_image(img_color, 'Image', 500)
         end = generate_image_data(downsampled_combined,
                                   img_color,
                                   patches_np,

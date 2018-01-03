@@ -5,6 +5,7 @@ import numpy as np
 from numpy import uint32, float32, sqrt, stack
 from sys import argv, exit
 from os.path import isfile
+from random import shuffle
 
 import h5py
 
@@ -37,7 +38,7 @@ def downsample(img):
 
 
 def show_image(img, label='Depth Image', wait_period=0):
-    cv2.imshow(label, cv2.resize(img, (1600, 900),
+    cv2.imshow(label, cv2.resize(img, (1920, 1080),
                                  interpolation=cv2.INTER_NEAREST))
     cv2.waitKey(wait_period)
 
@@ -66,6 +67,18 @@ def create_convnet_model():
     model.add(Conv2D(128, (3, 3), padding='valid',
                      data_format="channels_last",
                      activation='relu'))
+    '''model.add(Conv2D(128, (2, 2), padding='valid',
+                     data_format="channels_last",
+                     activation='relu', input_shape=(7, 7, 4)))
+    model.add(Conv2D(128, (2, 2), padding='valid',
+                     data_format="channels_last",
+                     activation='relu'))
+    model.add(Conv2D(128, (2, 2), padding='valid',
+                     data_format="channels_last",
+                     activation='relu'))
+    model.add(Conv2D(128, (2, 2), padding='valid',
+                     data_format="channels_last",
+                     activation='relu'))'''
     model.add(Conv2D(128, (2, 2), padding='valid',
                      data_format="channels_last",
                      activation='relu'))
@@ -99,11 +112,45 @@ def create_simple_model():
 
 def train_model(model, data, save_file='model.h5', weights_file='weights.h5'):
     X_train, Y_train, X_test, Y_test = data
-    adam = Adam(lr=0.001, decay=0.0)
+
+    batch_size = 256
+    train_data_length = X_train.shape[0] // 10
+    train_data_it = train_data_length // batch_size
+    val_start = int(train_data_it * 0.9)
+
+    adam = Adam(lr=0.0001, decay=0.0)
     model.compile(loss='mean_absolute_error',
                   optimizer=adam, metrics=['accuracy'])
-    model.fit(X_train, Y_train, batch_size=256,
+
+    def train_batch_generator():
+        while True:
+            iter_range = [i for i in range(0, val_start)]
+            shuffle(iter_range)
+            for i in iter_range:
+                i_curr = i * batch_size
+                X_train_batch = X_train[i_curr:i_curr + batch_size]
+                Y_train_batch = Y_train[i_curr:i_curr + batch_size]
+                yield (X_train_batch, Y_train_batch)
+
+    def val_batch_generator():
+        while True:
+            iter_range = [i for i in range(val_start, train_data_it)]
+            shuffle(iter_range)
+            for i in iter_range:
+                i_curr = i * batch_size
+                X_train_batch = X_train[i_curr:i_curr + batch_size]
+                Y_train_batch = Y_train[i_curr:i_curr + batch_size]
+                yield (X_train_batch, Y_train_batch)
+
+    model.fit(X_train[:train_data_it * 256], Y_train[:train_data_it * 256], batch_size=256,
               epochs=3, verbose=1, validation_split=0.1)
+    '''model.fit_generator(train_batch_generator(),
+                        steps_per_epoch=val_start,
+                        epochs=3, verbose=1,
+                        validation_data=val_batch_generator(),
+                        validation_steps=train_data_it - val_start,
+                        shuffle=True
+                        )'''
     score = model.evaluate(X_test, Y_test, verbose=1)
     print(score)
     model.save(save_file)
@@ -132,8 +179,8 @@ def test_on_image_pair(color_image_filename,
                        model):
     i = 200
     j = 750
-    #i = 0
-    #j = 0
+    # i = 0
+    # j = 0
     r_x = 100
     r_y = 100
     color_img = read_color_img(color_image_filename)
