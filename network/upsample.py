@@ -63,22 +63,10 @@ def create_convnet_model():
 
     model.add(Conv2D(128, (3, 3), padding='valid',
                      data_format="channels_last",
-                     activation='relu', input_shape=(7, 7, 4)))
+                     activation='relu', input_shape=(7, 7, 2)))
     model.add(Conv2D(128, (3, 3), padding='valid',
                      data_format="channels_last",
                      activation='relu'))
-    '''model.add(Conv2D(128, (2, 2), padding='valid',
-                     data_format="channels_last",
-                     activation='relu', input_shape=(7, 7, 4)))
-    model.add(Conv2D(128, (2, 2), padding='valid',
-                     data_format="channels_last",
-                     activation='relu'))
-    model.add(Conv2D(128, (2, 2), padding='valid',
-                     data_format="channels_last",
-                     activation='relu'))
-    model.add(Conv2D(128, (2, 2), padding='valid',
-                     data_format="channels_last",
-                     activation='relu'))'''
     model.add(Conv2D(128, (2, 2), padding='valid',
                      data_format="channels_last",
                      activation='relu'))
@@ -88,8 +76,9 @@ def create_convnet_model():
     model.add(Flatten())
     model.add(Dense(100, activation='relu'))
     model.add(Dense(100, activation='relu'))
-    model.add(Dense(2 * 2 * 3, activation='linear'))
-    model.add(Reshape((2, 2, 3)))
+    model.add(Dropout(0.5))
+    model.add(Dense(2 * 2 * 1, activation='linear'))
+    model.add(Reshape((2, 2, 1)))
 
     return model
 
@@ -110,17 +99,50 @@ def create_simple_model():
     return model
 
 
-def train_model(model, data, save_file='model.h5', weights_file='weights.h5'):
+def process_img(X_train_img, Y_train_img):
+    new_x = np.zeros(
+        (X_train_img.shape[0], X_train_img.shape[1], 2), dtype=float32)
+    new_y = np.zeros(
+        (Y_train_img.shape[0], Y_train_img.shape[1], 1), dtype=float32)
+    new_x[:, :, 0] = cv2.cvtColor(
+        X_train_img[:, :, :3], cv2.COLOR_BGR2YUV)[:, :, 0]
+    new_x[:, :, 1] = X_train_img[:, :, 3]
+    new_y[:, :, 0] = cv2.cvtColor(
+        Y_train_img[:, :, :3], cv2.COLOR_BGR2YUV)[:, :, 0]
+    #show_image(new_x[:, :, 0])
+    # show_image(new_y)
+    return (new_x, new_y)
+
+
+def process_images(X_train_images, Y_train_images, verbose=False):
+    new_x = np.zeros(
+        (X_train_images.shape[0], X_train_images.shape[1],
+         X_train_images.shape[2], 2),
+        dtype=float32)
+    new_y = np.zeros(
+        (Y_train_images.shape[0], Y_train_images.shape[1],
+         Y_train_images.shape[2], 1),
+        dtype=float32)
+    assert(X_train_images.shape[0] == Y_train_images.shape[0])
+    for i in range(X_train_images.shape[0]):
+        if verbose:
+            print("Processed image {}/{}".format(i + 1,
+                                                 X_train_images.shape[0]))
+        new_x[i], new_y[i] = process_img(X_train_images[i], Y_train_images[i])
+    return (new_x, new_y)
+
+
+def train_model(model, data, save_file='model.h5', weights_file='weights.h5', decimate_factor=5):
     X_train, Y_train, X_test, Y_test = data
 
-    batch_size = 256
-    train_data_length = X_train.shape[0] // 10
+    batch_size = 128
+    train_data_length = X_train.shape[0] // decimate_factor
     train_data_it = train_data_length // batch_size
     val_start = int(train_data_it * 0.9)
 
     adam = Adam(lr=0.0001, decay=0.0)
     model.compile(loss='mean_absolute_error',
-                  optimizer=adam, metrics=['accuracy'])
+                  optimizer=adam, metrics=['cosine'])
 
     def train_batch_generator():
         while True:
@@ -130,7 +152,8 @@ def train_model(model, data, save_file='model.h5', weights_file='weights.h5'):
                 i_curr = i * batch_size
                 X_train_batch = X_train[i_curr:i_curr + batch_size]
                 Y_train_batch = Y_train[i_curr:i_curr + batch_size]
-                yield (X_train_batch, Y_train_batch)
+
+                yield process_images(X_train_batch, Y_train_batch)
 
     def val_batch_generator():
         while True:
@@ -140,34 +163,42 @@ def train_model(model, data, save_file='model.h5', weights_file='weights.h5'):
                 i_curr = i * batch_size
                 X_train_batch = X_train[i_curr:i_curr + batch_size]
                 Y_train_batch = Y_train[i_curr:i_curr + batch_size]
-                yield (X_train_batch, Y_train_batch)
 
-    model.fit(X_train[:train_data_it * 256], Y_train[:train_data_it * 256], batch_size=256,
-              epochs=3, verbose=1, validation_split=0.1)
-    '''model.fit_generator(train_batch_generator(),
+                yield process_images(X_train_batch, Y_train_batch)
+
+    '''model.fit(X_train[:train_data_it * 256], Y_train[:train_data_it * 256], batch_size=256,
+              epochs=3, verbose=1, validation_split=0.1)'''
+    model.fit_generator(train_batch_generator(),
                         steps_per_epoch=val_start,
                         epochs=3, verbose=1,
                         validation_data=val_batch_generator(),
                         validation_steps=train_data_it - val_start,
-                        shuffle=True
-                        )'''
-    score = model.evaluate(X_test, Y_test, verbose=1)
+                        shuffle=True)
+    num_test = X_test.shape[0] // decimate_factor
+    processed_test_img = process_images(
+        X_test[:num_test], Y_test[:num_test], True)
+    score = model.evaluate(
+        processed_test_img[0], processed_test_img[1], verbose=1)
     print(score)
     model.save(save_file)
     model.save_weights(weights_file)
 
 
 def exec_on_image(img, model):
-    final_img = np.zeros((img.shape[0] * 2, img.shape[1] * 2, 3), np.float32)
-    padded_img = cv2.copyMakeBorder(img, 3, 3, 3, 3,
+    final_img = np.zeros((img.shape[0] * 2, img.shape[1] * 2, 1), np.float32)
+    input_img = np.zeros((img.shape[0], img.shape[1], 2), np.float32)
+    input_img[:, :, 0] = cv2.cvtColor(
+        img[:, :, :3], cv2.COLOR_BGR2YUV)[:, :, 0]
+    input_img[:, :, 1] = img[:, :, 3]
+    padded_img = cv2.copyMakeBorder(input_img, 3, 3, 3, 3,
                                     cv2.BORDER_CONSTANT,
                                     value=[0, 0, 0, 0])
     for i in range(3, padded_img.shape[0] - 3):
         for j in range(3, padded_img.shape[1] - 3):
             box = np.reshape(padded_img[i - 3:i + 4, j - 3:j + 4, :],
-                             (1, 7, 7, 4))
+                             (1, 7, 7, 2))
             print(box[0].shape)
-            result = model.predict(box, 32, 1)
+            result = model.predict(box, batch_size=256, verbose=1)
             a_i = i - 3
             a_j = j - 3
             final_img[2 * a_i: 2 * a_i + 2, 2 * a_j: 2 * a_j + 2, :] = result
@@ -179,8 +210,8 @@ def test_on_image_pair(color_image_filename,
                        model):
     i = 200
     j = 750
-    # i = 0
-    # j = 0
+    #i = 0
+    #j = 0
     r_x = 100
     r_y = 100
     color_img = read_color_img(color_image_filename)
@@ -202,10 +233,13 @@ def test_on_image_pair(color_image_filename,
         downsampled_color, downsampled_depth, axis=2). \
         astype(float32)[i:i + r_x, j:j + r_y, :]
 
-    high_res_img = color_img[i * 2:i * 2 + r_x * 2, j * 2:j * 2 + r_y * 2, :]
+    high_res_img = color_img[i * 2:i * 2 + r_x * 2,
+                             j * 2:j * 2 + r_y * 2, :].astype(np.float32)
     low_res_img = downsampled_combined[:, :, 0:3]
-    show_image(high_res_img)
-    show_image(low_res_img)
+    show_image(cv2.cvtColor(
+        high_res_img, cv2.COLOR_BGR2YUV)[:, :, :1])
+    show_image(cv2.cvtColor(
+        low_res_img, cv2.COLOR_BGR2YUV)[:, :, :1])
     cv2.imwrite("reference_high_res.png", high_res_img * 255)
     cv2.imwrite("original_low_res.png", low_res_img * 255)
 
